@@ -1,0 +1,37 @@
+// Relations used by the semantic test cases (section 7.3).
+
+// Case 18: two numeric columns compared with each other.
+// Row (1, 1) and (5, 5) satisfy A=B. The column A is never compared to the
+// string 'B'.
+R18 (A, B) = {
+  1, 1
+  2, 3
+  5, 5
+}
+
+// Case 21: union of relations with different schemas
+R21 (a, b) = {
+  1, 2
+}
+S21 (b, c) = {
+  2, 3
+}
+
+// Case 22: Age is numeric
+R22 (Name, Age) = {
+  Ann, 30
+  Ben, 41
+}
+
+// Duplicate tuples in the input collapse to one (section 4.1)
+Dups (k, v) = {
+  1, x
+  1, x
+  1, 'x'
+  1.0, x
+  2, y
+}
+
+// An empty relation: column types are unknown
+Nobody (Name, Age) = {
+}

@@ -1,0 +1,19 @@
+// employees and their departments (the example from section 4.1)
+Employees (EID, Name, Age, DID) = {
+  E1, John, 32, D1
+  E2, Alice, 28, D2
+  E3, Bob, 29, D1
+}
+
+// for joins and self joins (test cases 19 and 20)
+Emp (EID, Name, Age, DID, MgrID) = {
+  E1, John, 45, D1, E1
+  E2, Alice, 28, D2, E1
+  E3, Bob, 29, D1, E2
+  E4, 'O''Brien, Pat', 35, D2, E1
+}
+
+Dept (DID, DName) = {
+  D1, Sales
+  D2, 'Research (R&D)'
+}

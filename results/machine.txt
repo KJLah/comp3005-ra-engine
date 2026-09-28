@@ -1,0 +1,4 @@
+platform: macOS-15.5-arm64-arm-64bit
+machine: arm64
+processor: arm
+python: CPython 3.11.7
