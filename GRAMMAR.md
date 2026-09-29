@@ -388,6 +388,31 @@ can never start with `(`.
 
 ### Where AI assistance was wrong
 
-<!-- TODO(Khadija): fill this in from real entries in DESIGN_LOG.md, in your own words.
-     Only list things that actually happened while you worked. -->
-_To be completed._
+I used AI assistance (Claude) throughout. These are the places where it
+was wrong, overconfident or incomplete. Each one has a dated entry in
+`DESIGN_LOG.md`.
+
+1. **It invented log entries.** The first draft of this section listed
+   example "AI was wrong" incidents that had never happened. The AI flagged
+   this itself when it reviewed the draft, before handing it over, and
+   removed them. Lesson: every entry here and in the design log has to be
+   checked against what actually happened.
+2. **It made an unverified claim about precedence.** The first draft
+   justified our precedence levels by saying they matched "Relax and most
+   textbooks". Nobody had checked Relax. That claim was removed, and 5.2 now
+   justifies the choice only by the arithmetic analogy (product binds tighter
+   than sum), which we can defend ourselves.
+3. **Its runtime prediction was wrong.** From the 16000 run (about 110 ns
+   per comparison), the AI predicted the 64000 join would take about
+   7.5 minutes. It took 610.6 s (10.2 minutes), 35% longer, because the cost
+   per comparison is not constant: it rises to 126 ns at 32000 and 149 ns at
+   64000. I found this by running the benchmark. REPORT.md now extrapolates
+   from the largest measured size and treats the million-tuple estimate as a
+   lower bound.
+4. **Its instructions were incomplete.** The checklist told me to run
+   `python3 ra.py -d data/employees.ra` but did not say to `cd` into the
+   project first. Run from my home folder, it failed with "can't open file".
+   I found it by running the command, and the step is now in the checklist.
+5. **Its UI text was misleading.** The interactive shell said "type
+   '.tree <query>'". I typed `<query>` literally and got a syntax error. The
+   banner now shows a concrete example.

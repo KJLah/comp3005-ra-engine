@@ -152,6 +152,17 @@ class ErrorCategories(unittest.TestCase):
         with self.assertRaises(RANameError):
             load_text("R(a) = {\n}\nR(b) = {\n}")
 
+    def test_no_traceback_when_output_is_cut_off(self):
+        # like `python3 ra.py ... | head -1`: the reader closes the pipe early
+        p = subprocess.Popen([sys.executable, os.path.join(ROOT, "ra.py"),
+                              "-d", "data/employees.ra", "Emp times Emp times Dept"],
+                             cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.stdout.readline()
+        p.stdout.close()
+        err = p.stderr.read().decode()
+        p.wait()
+        self.assertNotIn("Traceback", err)
+
     def test_missing_data_file(self):
         code, out = cli("-d", "no/such/file.ra", "R")
         self.assertEqual(code, 1)

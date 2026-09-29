@@ -13,6 +13,7 @@ internal error in one line.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 
@@ -48,7 +49,9 @@ def run_one(query: str, catalog, tree_only: bool, stats: bool) -> int:
 
 def repl(catalog, stats: bool) -> int:
     print("Relational algebra shell. Relations: " + (", ".join(sorted(catalog)) or "none"))
-    print("Type a query, '.tree <query>' for the parse tree, or '.quit'.")
+    print("Type a query, e.g.  project[Name](Employees)")
+    print("Put .tree in front of a query to see its parse tree, e.g.  .tree A union B minus C")
+    print("Type .quit to leave.")
     while True:
         try:
             line = input("ra> ").strip()
@@ -97,6 +100,11 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\ninterrupted")
         sys.exit(130)
+    except BrokenPipeError:
+        # the reader went away (e.g. output piped into `head`): stop quietly
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        sys.exit(1)
     except RecursionError:
         print("Error: the query is nested too deeply to process")
         sys.exit(1)
