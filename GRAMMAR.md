@@ -416,3 +416,7 @@ was wrong, overconfident or incomplete. Each one has a dated entry in
 5. **Its UI text was misleading.** The interactive shell said "type
    '.tree <query>'". I typed `<query>` literally and got a syntax error. The
    banner now shows a concrete example.
+6. **Its code could still show a stack trace.** When the output was piped
+   into `head` and the pipe closed early, `ra.py` printed a `BrokenPipeError`
+   traceback, which breaks section 6.3. The AI hit this during its own
+   testing. It is now caught, and there is a test for it.

@@ -160,6 +160,7 @@ class ErrorCategories(unittest.TestCase):
         p.stdout.readline()
         p.stdout.close()
         err = p.stderr.read().decode()
+        p.stderr.close()
         p.wait()
         self.assertNotIn("Traceback", err)
 

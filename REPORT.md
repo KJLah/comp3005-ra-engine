@@ -1,24 +1,8 @@
 # Performance study
 
-<<<<<<< HEAD
-**Machine:** «MacBook model, chip (e.g. Apple M2) and RAM, from  → About This Mac»,
-arm64
+**Machine:** 2020 MacBook Pro, Apple M1, 8 GB RAM (arm64)
 **OS:** macOS 15.5 (`macOS-15.5-arm64-arm-64bit`)
 **Language:** CPython 3.11.7
-=======
-<!--
-HOW TO FILL THIS IN
-1. On your own machine, run:   python3 bench.py      (full run: about 10–20 minutes)
-2. Every number below comes from results/tables.md, results/*.csv or results/machine.txt.
-   Replace each «…» with the value from those files. Don't type a number you can't point to.
-3. Put results/loglog.png in the repo, since it is embedded below.
-4. Reread each answer and change the wording to match what YOUR numbers show.
--->
-
-**Machine:** «2020 MacBook Pro M1, «8GB RAM»
-**OS:** «results/machine.txt → platform»
-**Language:** CPython «results/machine.txt → python»
->>>>>>> 46f40a2ec8584c306672e7fed7a39a10452b56da
 **Command:** `python3 bench.py` (data from `gen_data.py`, match rate 1, seed 42)
 
 Every number below comes from `results/tables.md`, `results/join.csv`,

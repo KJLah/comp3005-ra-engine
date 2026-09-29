@@ -1,0 +1,77 @@
+// Examples from Lecture 02 (Relational Algebra), typed in our syntax.
+// Budgets are written 20000 instead of 20,000 because a bare comma separates values.
+
+// selection / projection slides
+Employee (id, name, email, salary) = {
+  1, Alex, a@c, 1000
+  2, John, j@c, 600
+  3, Mo, m@c, 1200
+}
+
+// cartesian product / join slides
+EmpDept (id, name, email, Dept) = {
+  1, Alex, a@c, Sales
+  2, John, j@c, Finance
+  3, Mo, m@c, HR
+}
+Department (name, budget) = {
+  Finance, 20000
+  Sales, 30000
+  HR, 25000
+}
+
+// set operator slides (our rule needs identical attribute names; see README)
+EmpSet (name, email, Dept) = {
+  Alex, a@c, Sales
+  John, j@c, Finance
+  Mo, m@c, HR
+}
+GradStudent (name, email, Dept) = {
+  Alex, a@c, Sales
+  Max, x@c, Finance
+  Go, g@c, HR
+}
+GradStudentDepar (name, email, Depar) = {
+  Alex, a@c, Sales
+  Max, x@c, Finance
+  Go, g@c, HR
+}
+EmpSalary (name, email, Dept, Salary) = {
+  Alex, a@c, Sales, 1000
+  John, j@c, Finance, 1200
+  Mo, m@c, HR, 1500
+}
+
+// "Examples" section
+Student (id, name, email, city) = {
+  1, Alex, al@c.ca, Ottawa
+  2, John, jo@c.ca, Ottawa
+  3, Makela, ma@c.ca, Toronto
+}
+Takes (sid, cid, mark) = {
+  1, 1, 9
+  1, 2, 10
+  1, 3, 8
+  2, 1, 8
+}
+Course (id, title, hours) = {
+  1, Math, 0.5
+  2, Physics, 0.5
+  3, DBMS, 0.5
+}
+
+// division slide: students who studied ALL courses
+Stud_Course (sid, cname, mark) = {
+  1, Math, 3
+  1, Pythics, 2
+  1, Network, 3
+  2, Math, 3
+  2, Pythics, 2
+  2, Network, 3
+  3, Network, 3
+}
+Course2 (cname, Hours) = {
+  Math, 3
+  Pythics, 2
+  Network, 3
+}

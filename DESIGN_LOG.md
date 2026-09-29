@@ -87,6 +87,13 @@ wrong, slow or incomplete: what the problem was and how I found it.
 - `git push` succeeded, but the repo looked empty on GitHub. It is private,
   and I was looking at a page from before the push. Refreshing while signed
   in showed the files. I still need to make it visible to the professor.
+- I checked the engine against the worked examples in Lecture 02. They are
+  now 23 tests in `tests/test_lecture_examples.py`, and all of them pass. One
+  real difference turned up: the set-operator slide intersects a relation
+  with a `Dept` column and one with `Depar`, which the lecture treats as
+  compatible. The assignment (4.3) requires identical names, so our engine
+  rejects it. I kept the assignment's rule and documented the difference in
+  README.md.
 - <!-- TODO: add what you saw when you ran the queries and the error cases. -->
 
 **AI was wrong / slow / incomplete:**
@@ -99,3 +106,9 @@ wrong, slow or incomplete: what the problem was and how I found it.
   <query>'". I typed `<query>` literally and got "Syntax error at line 1,
   column 1". The error handling worked, but the banner read like literal
   text. It now shows a concrete example (`ra.py`, the `repl()` banner).
+- **Its code printed a stack trace.** While testing the new banner, the
+  output was piped into `head`. When `head` closed the pipe early, Python
+  raised `BrokenPipeError`, and `ra.py` printed a full traceback. That breaks
+  the "never show a stack trace" rule (section 6.3). The AI hit this during
+  its own test run, not me. `main()` now catches `BrokenPipeError` and exits
+  quietly, and `test_no_traceback_when_output_is_cut_off` checks it.

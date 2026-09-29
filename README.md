@@ -23,7 +23,7 @@ python3 ra.py -d data/employees.ra --stats "Emp join[Emp.DID=Dept.DID] Dept"
 # interactive shell (type .tree <query> for a tree, .quit to leave)
 python3 ra.py -d data/employees.ra
 
-# tests: all 25 required cases plus our own
+# tests: all 25 required cases, the Lecture 02 examples, and our own
 python3 -m unittest discover -s tests -v
 
 # performance study
@@ -51,7 +51,7 @@ python3 bench.py --max 8000 # quick run
 | `ra_engine/errors.py` | The five error categories, rendered with a position |
 | `gen_data.py` | Data generator for R(a, b) and S(b, c) |
 | `bench.py` | Runs the experiment and writes `results/` |
-| `tests/` | All 25 required cases plus our own |
+| `tests/` | All 25 required cases, the Lecture 02 examples, plus our own (90 tests) |
 | `data/employees.ra` | Example relations (Employees from section 4.1, Emp, Dept) |
 
 ## Pipeline
@@ -132,6 +132,38 @@ These are the "decide and document" points from the handout:
 python3 ra.py -d data/employees.ra \
   "project[Emp.Name, E2.Name](rename[E2](Emp) join[Emp.MgrID=E2.EID] Emp)"
 ```
+
+## How this relates to Lecture 02 (Relational Algebra)
+
+`tests/test_lecture_examples.py` runs the worked examples from the lecture
+slides against the same data (`tests/data/lecture.ra`), and all of them give
+the answers shown in class:
+
+* σ, π and their combinations, including the two "is it commutative?"
+  slides. σ commutes, and two σ's equal one σ with `and`. π does not
+  commute, and `select[id>=2](project[name, email](Employee))` is a name
+  error because `id` has been projected away.
+* × followed by σ equals ⨝ (the "Inner Join = ⨉ with σ" slide).
+* ∪, ∩ and − on compatible relations. − is not commutative, and projecting
+  away the extra `Salary` column fixes the compatibility problem.
+* The "Examples" section: students in Ottawa, Makela's email, names with
+  titles and marks (a two-join query), and students who take no courses. The
+  duplicate-free `{Alex, John}` note holds.
+* **Division** is not one of our operators, but the "students who studied
+  ALL courses" slide can be written with the core ones:
+  `π_sid(R) − π_sid((π_sid(R) × π_cname(Course)) − R)`.
+
+Where this project deliberately differs from the slides, it follows the
+assignment handout:
+
+| In the lecture | Here | Why |
+|---|---|---|
+| Natural join `Employee ⨝ Department` on same-named columns | only theta join `join[c]` | Section 4.3: "a theta join, not a natural join" |
+| Outer joins ⟕ ⟖ ⟗ (they produce NULLs) | not supported | Section 3: nulls are out of scope |
+| Division ÷ | not an operator (it can be written with − and ×, see above) | not in section 4.2 |
+| Set operators need the same arity and types (the slide pairs `Dept` with `Depar`) | the same attribute **names** in the same order are also required | Section 4.3 defines union compatibility this way |
+| RelaX-style definitions `Student = { id, name, ... }` | `Student (id, name, ...) = { ... }` | Section 4.1 syntax |
+| Symbols σ π ρ ⨝ | ASCII keywords `select`, `project`, `rename`, `join` | Section 4: the ASCII form is what is tested |
 
 ## Errors
 
