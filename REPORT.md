@@ -9,7 +9,7 @@ HOW TO FILL THIS IN
 4. Reread each answer and change the wording to match what YOUR numbers show.
 -->
 
-**Machine:** «model, e.g. MacBook Pro M« », « » GB RAM»
+**Machine:** «2020 MacBook Pro M1, «8GB RAM»
 **OS:** «results/machine.txt → platform»
 **Language:** CPython «results/machine.txt → python»
 **Command:** `python3 bench.py` (data from `gen_data.py`, match rate 1, seed 42)
