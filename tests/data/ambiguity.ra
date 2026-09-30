@@ -1,7 +1,7 @@
 // GRAMMAR.md 5.3: instances where the two groupings give different answers.
 
 // Test 10: A union B minus C
-//   (A union B) minus C = {2}      <- our grammar
+//   (A union B) minus C = {2}      <- the engine's used grammar
 //   A union (B minus C) = {1, 2}
 A (x) = {
   1
@@ -14,7 +14,7 @@ C (x) = {
 }
 
 // Test 11: A2 minus B2 minus C2
-//   (A2 minus B2) minus C2 = {2, 3}      <- our grammar
+//   (A2 minus B2) minus C2 = {2, 3}      <- the engine's used grammar
 //   A2 minus (B2 minus C2) = {1, 2, 3}
 A2 (x) = {
   1
