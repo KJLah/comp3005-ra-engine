@@ -3,6 +3,7 @@
 
     python bench.py                  # full run: 1000 .. 64000 (takes a while)
     python bench.py --max 8000       # quick run for testing
+    python bench.py --plot-only      # redraw the plot from the saved CSVs
 
 For each size it:
   1. writes R and S with gen_data.py (match rate 1),
@@ -85,7 +86,13 @@ def main():
     ap.add_argument("--out", default="results")
     ap.add_argument("--gen", default="data/generated")
     ap.add_argument("--skip-match", action="store_true")
+    ap.add_argument("--plot-only", action="store_true",
+                    help="redraw the plot from join.csv and unary.csv, no timing")
     args = ap.parse_args()
+    if args.plot_only:
+        make_plots(args.out, read_csv(os.path.join(args.out, "join.csv")),
+                   read_csv(os.path.join(args.out, "unary.csv")))
+        return 0
     os.makedirs(args.out, exist_ok=True)
     sizes = [n for n in SIZES if n <= args.max]
 
@@ -173,17 +180,23 @@ def main():
               "(pip install matplotlib)")
 
 
+def read_csv(path):
+    """Rows of a results CSV without the header (values as strings)."""
+    with open(path, newline="") as f:
+        return list(csv.reader(f))[1:]
+
+
 def make_plots(out_dir, join_rows, unary_rows):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    ns = [r[0] for r in join_rows]
+    ns = [int(r[0]) for r in join_rows]
     fig, ax = plt.subplots(figsize=(6, 4.5))
     ax.loglog(ns, [float(r[3]) for r in join_rows], "o-", label="join (nested loop)")
     ax.loglog(ns, [float(r[2]) for r in unary_rows], "s-", label="select")
     ax.loglog(ns, [float(r[4]) for r in unary_rows], "^-", label="project")
-    ax.set_xlabel("n = m (tuples per relation)")
+    ax.set_xlabel("rows in each table (n = m)")
     ax.set_ylabel("wall time (s)")
     ax.set_title("Wall time vs input size (log-log)")
     ax.grid(True, which="both", alpha=0.3)
