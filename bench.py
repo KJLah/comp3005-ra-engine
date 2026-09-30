@@ -138,12 +138,12 @@ def main():
     # ---- markdown tables and derived numbers --------------------------------------
     ns = [r[0] for r in join_rows]
     jt = [float(r[3]) for r in join_rows]
-    lines = ["## Join: R join[R.b=S.b] S (match rate 1)", "",
+    lines = ["## Join: `R join[R.b=S.b] S` (match rate 1)", "",
              "| n | m | comparisons | n*m | wall time (s) | output tuples |",
              "|---|---|---|---|---|---|"]
     for n, m, c, t, o in join_rows:
         lines.append(f"| {n} | {m} | {c} | {n * m} | {t} | {o} |")
-    lines += ["", "## select[b<n/2](R) and project[b](R)", "",
+    lines += ["", "## `select[b<n/2](R)` and `project[b](R)`", "",
               "| n | select tuples evaluated | select time (s) | select output "
               "| project time (s) | project output |",
               "|---|---|---|---|---|---|"]
@@ -197,8 +197,8 @@ def make_plots(out_dir, join_rows, unary_rows):
     ax.loglog(ns, [float(r[2]) for r in unary_rows], "s-", label="select")
     ax.loglog(ns, [float(r[4]) for r in unary_rows], "^-", label="project")
     ax.set_xlabel("rows in each table (n = m)")
-    ax.set_ylabel("wall time (s)")
-    ax.set_title("Wall time vs input size (log-log)")
+    ax.set_ylabel("time (s)")
+    ax.set_title("Time vs input size (log-log)")
     ax.grid(True, which="both", alpha=0.3)
     ax.legend()
     fig.tight_layout()

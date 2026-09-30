@@ -1,4 +1,4 @@
-## Join: R join[R.b=S.b] S (match rate 1)
+## Join: `R join[R.b=S.b] S` (match rate 1)
 
 | n | m | comparisons | n*m | wall time (s) | output tuples |
 |---|---|---|---|---|---|
@@ -10,7 +10,7 @@
 | 32000 | 32000 | 1024000000 | 1024000000 | 129.156523 | 32000 |
 | 64000 | 64000 | 4096000000 | 4096000000 | 610.572866 | 64000 |
 
-## select[b<n/2](R) and project[b](R)
+## `select[b<n/2](R)` and `project[b](R)`
 
 | n | select tuples evaluated | select time (s) | select output | project time (s) | project output |
 |---|---|---|---|---|---|
