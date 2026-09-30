@@ -27,7 +27,7 @@ class Str:
 @dataclass
 class Attr:
     name: str
-    qualifier: Optional[str]  # "Emp" in Emp.DID, or None
+    qualifier: Optional[str]  # "employeeTable2" in employeeTable2.DID, or None
     pos: Position
 
     def display(self) -> str:

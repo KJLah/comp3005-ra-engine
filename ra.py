@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Command-line entry point.
 
-    python ra.py --tree "project[Name](select[Age>30](Employees))"
-    python ra.py -d data/employees.ra "project[Name](Employees)"
-    python ra.py -d data/employees.ra --stats "Emp join[Emp.DID=Dept.DID] Dept"
+    python ra.py --tree "project[Name](select[Age>30](employeeTable1))"
+    python ra.py -d data/employees.ra "project[Name](employeeTable1)"
+    python ra.py -d data/employees.ra --stats "employeeTable2 join[employeeTable2.DID=departmentTable.DID] departmentTable"
     python ra.py -d data/employees.ra            (interactive mode)
 
 A Python stack trace is never shown. Language errors (RAError) are printed
@@ -49,7 +49,7 @@ def run_one(query: str, catalog, tree_only: bool, stats: bool) -> int:
 
 def repl(catalog, stats: bool) -> int:
     print("Relational algebra shell. Relations: " + (", ".join(sorted(catalog)) or "none"))
-    print("Type a query, e.g.  project[Name](Employees)")
+    print("Type a query, e.g.  project[Name](employeeTable1)")
     print("Put .tree in front of a query to see its parse tree, e.g.  .tree A union B minus C")
     print("Type .quit to leave.")
     while True:

@@ -128,7 +128,7 @@ atom           = "select"  "[" condition "]"  "(" expr ")"
                | IDENT ;                                   (* a relation name *)
 
 attr_list      = attr_ref { "," attr_ref } ;              (* at least one *)
-attr_ref       = [ IDENT "." ] name ;                     (* Age  or  Emp.DID *)
+attr_ref       = [ IDENT "." ] name ;                     (* Age  or  employeeTable2.DID *)
 ```
 
 ### 5.1.4 Syntactic grammar — conditions
@@ -147,7 +147,7 @@ operand        = NUMBER | STRING | attr_ref ;
 
 In a condition, an unquoted word is **always an attribute** and never a
 string. `select[A=B](R)` compares column A with column B (test case 18). A
-string constant must be quoted: `select[DID='D1'](Employees)`.
+string constant must be quoted: `select[DID='D1'](employeeTable1)`.
 
 ### 5.1.5 Syntactic grammar — relation definitions
 

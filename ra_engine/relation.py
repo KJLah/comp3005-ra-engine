@@ -81,7 +81,7 @@ class Relation:
 
 def display_names(attributes: Sequence[Attribute]) -> List[str]:
     """Show the bare name when it is unique in the schema, and the qualified
-    name (Emp.DID) when two attributes share a bare name."""
+    name (employeeTable2.DID) when two attributes share a bare name."""
     counts: Dict[str, int] = {}
     for a in attributes:
         counts[a.name] = counts.get(a.name, 0) + 1
