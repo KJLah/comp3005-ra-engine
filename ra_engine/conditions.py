@@ -32,7 +32,7 @@ COMPARATORS = {
 def resolve(attributes: Sequence[Attribute], ref: Attr) -> int:
     """Return the index of the attribute that ``ref`` names, or raise a name error.
 
-    ``employeeTable2.DID`` must match both the qualifier and the name. A bare ``DID`` must
+    ``Emp.DID`` must match both the qualifier and the name. A bare ``DID`` must
     match exactly one attribute, otherwise it is ambiguous.
     """
     matches: List[int] = []

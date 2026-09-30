@@ -12,13 +12,13 @@ optional and is used only by `bench.py` to draw the plot for the report.
 
 ```bash
 # print the parse tree only (no data needed)
-python3 ra.py --tree "project[Name](select[Age>30](employeeTable1))"
+python3 ra.py --tree "project[Name](select[Age>30](Employees))"
 
 # run a query against one or more relation files
-python3 ra.py -d data/employees.ra "project[DID](employeeTable1)"
+python3 ra.py -d data/employees.ra "project[DID](Employees)"
 
 # also show the operator counters and the wall time
-python3 ra.py -d data/employees.ra --stats "employeeTable2 join[employeeTable2.DID=departmentTable.DID] departmentTable"
+python3 ra.py -d data/employees.ra --stats "Emp join[Emp.DID=Dept.DID] Dept"
 
 # interactive shell (type .tree <query> for a tree, .quit to leave)
 python3 ra.py -d data/employees.ra
@@ -52,7 +52,7 @@ python3 bench.py --max 8000 # quick run
 | `gen_data.py` | Data generator for R(a, b) and S(b, c) |
 | `bench.py` | Runs the experiment and writes `results/` |
 | `tests/` | All 25 required cases, the Lecture 02 examples, plus our own (90 tests) |
-| `data/employees.ra` | Example relations (employeeTable1 from section 4.1, employeeTable2, departmentTable) |
+| `data/employees.ra` | Example relations (Employees from section 4.1, Emp, Dept) |
 
 ## Pipeline
 
@@ -79,7 +79,7 @@ user wrote it. There is no optimisation or rewriting.
   parentheses, then `times`/`join`, then `intersect`, then `union`/`minus`.
 * **Conditions**: `= != < <= > >=`, combined with `not`, `and` and `or` (in
   that order of precedence) and parentheses. An operand is a number, a quoted
-  string, or an attribute (`Age` or `employeeTable2.DID`).
+  string, or an attribute (`Age` or `Emp.DID`).
 
 ## Semantic decisions
 
@@ -95,10 +95,10 @@ These are the "decide and document" points from the handout:
   two columns. The string must be written `'B'` (case 18).
 * **`project[Name, Name]`** (case 24) is a schema error. An output schema
   cannot contain the same column twice. This also catches
-  `project[Name, employeeTable1.Name]`, which names the same column in two ways.
+  `project[Name, Employees.Name]`, which names the same column in two ways.
 * **Qualified names.** Every attribute carries the name of the relation it
   came from. `times` and `join` keep both qualifiers, so after
-  `employeeTable2 join[employeeTable2.DID=departmentTable.DID] departmentTable` the output has `employeeTable2.DID` and `departmentTable.DID`
+  `Emp join[Emp.DID=Dept.DID] Dept` the output has `Emp.DID` and `Dept.DID`
   (case 19). The result table shows the qualified name only when a bare name
   would be ambiguous. A bare attribute name in a condition must match exactly
   one column, otherwise it is an "ambiguous attribute" name error.
@@ -112,25 +112,25 @@ These are the "decide and document" points from the handout:
 
 ### Why the self join needs `rename` (case 20)
 
-`employeeTable2 join[employeeTable2.MgrID=employeeTable2.EID] employeeTable2` cannot be answered, for two reasons:
+`Emp join[Emp.MgrID=Emp.EID] Emp` cannot be answered, for two reasons:
 
 1. **The schema.** `join` is `times` followed by `select`, and `times`
-   qualifies every attribute by relation name. Both inputs are called `employeeTable2`,
-   so the product would have two attributes called `employeeTable2.EID`, two called
-   `employeeTable2.MgrID`, and so on. Qualification cannot tell them apart, so this is a
+   qualifies every attribute by relation name. Both inputs are called `Emp`,
+   so the product would have two attributes called `Emp.EID`, two called
+   `Emp.MgrID`, and so on. Qualification cannot tell them apart, so this is a
    schema error.
-2. **The condition.** Even if that were allowed, `employeeTable2.MgrID = employeeTable2.EID` could
+2. **The condition.** Even if that were allowed, `Emp.MgrID = Emp.EID` could
    not say "the employee's MgrID equals the *other copy's* EID". Both names
    refer to the same relation, so at best the condition compares a tuple with
    itself, which finds people who manage themselves.
 
-`rename[E2](employeeTable2)` gives the second copy a new name, so its attributes become
+`rename[E2](Emp)` gives the second copy a new name, so its attributes become
 `E2.EID`, `E2.MgrID` and so on. Now the product has distinct names, and
-`employeeTable2.MgrID = E2.EID` pairs each employee with their manager:
+`Emp.MgrID = E2.EID` pairs each employee with their manager:
 
 ```bash
 python3 ra.py -d data/employees.ra \
-  "project[employeeTable2.Name, E2.Name](rename[E2](employeeTable2) join[employeeTable2.MgrID=E2.EID] employeeTable2)"
+  "project[Emp.Name, E2.Name](rename[E2](Emp) join[Emp.MgrID=E2.EID] Emp)"
 ```
 
 ## How this relates to Lecture 02 (Relational Algebra)

@@ -51,22 +51,22 @@ class Semantics_7_3(unittest.TestCase):
         self.assertEqual(rows("select[A=B](R18)"), [(1, 1), (5, 5)])
 
     def test_19_qualified_names_and_distinguishable_schema(self):
-        r = run("employeeTable2 join[employeeTable2.DID=departmentTable.DID] departmentTable")
+        r = run("Emp join[Emp.DID=Dept.DID] Dept")
         self.assertEqual(len(r.rows), 4)
         names = r.display_names()
-        self.assertIn("employeeTable2.DID", names)
-        self.assertIn("departmentTable.DID", names)
+        self.assertIn("Emp.DID", names)
+        self.assertIn("Dept.DID", names)
         self.assertEqual(len(r.attributes), 7)       # 5 + 2, nothing merged
 
     def test_20_self_join_with_rename(self):
-        r = run("project[employeeTable2.Name, E2.Name](rename[E2](employeeTable2) join[employeeTable2.MgrID=E2.EID] employeeTable2)")
+        r = run("project[Emp.Name, E2.Name](rename[E2](Emp) join[Emp.MgrID=E2.EID] Emp)")
         self.assertEqual(sorted(r.rows), sorted([
             ("John", "John"), ("Alice", "John"), ("O'Brien, Pat", "John"),
             ("Bob", "Alice")]))
 
     def test_20b_self_join_without_rename_is_an_error(self):
         with self.assertRaises(SchemaError):
-            run("employeeTable2 join[employeeTable2.MgrID=employeeTable2.EID] employeeTable2")
+            run("Emp join[Emp.MgrID=Emp.EID] Emp")
 
     def test_21_union_different_schemas(self):
         with self.assertRaises(SchemaError) as cm:
@@ -79,16 +79,16 @@ class Semantics_7_3(unittest.TestCase):
             run("select[Age>'30'](R22)")
 
     def test_23_project_removes_duplicates(self):
-        r = run("project[DID](employeeTable1)")
+        r = run("project[DID](Employees)")
         self.assertEqual(sorted(r.rows), [("D1",), ("D2",)])
 
     def test_24_project_same_attribute_twice(self):
         with self.assertRaises(SchemaError) as cm:
-            run("project[Name, Name](employeeTable1)")
+            run("project[Name, Name](Employees)")
         self.assertIn("listed twice", cm.exception.message)
 
     def test_25_empty_result_prints_schema(self):
-        out = format_relation(run("select[Age>100](employeeTable1)"))
+        out = format_relation(run("select[Age>100](Employees)"))
         self.assertEqual(out, "EID | Name | Age | DID\n"
                               "----+------+-----+----\n"
                               "(0 tuples)")
@@ -116,31 +116,31 @@ class ErrorCategories(unittest.TestCase):
         self.assertNotIn("Traceback", out)
 
     def test_lexical(self):
-        self.check_cli("select[Name='Bob](employeeTable1)", "Lexical error at line 1, column 13")
+        self.check_cli("select[Name='Bob](Employees)", "Lexical error at line 1, column 13")
 
     def test_syntax(self):
-        self.check_cli("select[Age>30](employeeTable1", "Syntax error at line 1, column 30")
+        self.check_cli("select[Age>30](Employees", "Syntax error at line 1, column 25")
 
     def test_syntax_missing_operand(self):
-        self.check_cli("employeeTable1 union", "Syntax error")
+        self.check_cli("Employees union", "Syntax error")
 
     def test_name_relation(self):
         self.check_cli("Nope", "Name error at line 1, column 1")
 
     def test_name_attribute(self):
-        self.check_cli("project[Salary](employeeTable1)", "Name error at line 1, column 9")
+        self.check_cli("project[Salary](Employees)", "Name error at line 1, column 9")
 
     def test_name_ambiguous(self):
-        self.check_cli("employeeTable2 join[DID=DID] departmentTable", "Name error")
+        self.check_cli("Emp join[DID=DID] Dept", "Name error")
 
     def test_schema(self):
-        self.check_cli("employeeTable1 union departmentTable", "Schema error")
+        self.check_cli("Employees union Dept", "Schema error")
 
     def test_type(self):
-        self.check_cli("select[Age>'30'](employeeTable1)", "Type error")
+        self.check_cli("select[Age>'30'](Employees)", "Type error")
 
     def test_type_attribute_vs_attribute(self):
-        self.check_cli("select[Name<Age](employeeTable1)", "Type error")
+        self.check_cli("select[Name<Age](Employees)", "Type error")
 
     def test_data_file_errors_name_the_file(self):
         with self.assertRaises(SchemaError):
@@ -155,7 +155,7 @@ class ErrorCategories(unittest.TestCase):
     def test_no_traceback_when_output_is_cut_off(self):
         # like `python3 ra.py ... | head -1`: the reader closes the pipe early
         p = subprocess.Popen([sys.executable, os.path.join(ROOT, "ra.py"),
-                              "-d", "data/employees.ra", "employeeTable2 times employeeTable2 times departmentTable"],
+                              "-d", "data/employees.ra", "Emp times Emp times Dept"],
                              cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.stdout.readline()
         p.stdout.close()
@@ -176,22 +176,22 @@ class ExtraSemantics(unittest.TestCase):
         self.assertEqual(rows("Dups"), [(1, "x"), (2, "y")])
 
     def test_select_counter_counts_every_tuple(self):
-        op = plan(parse_query("select[Age>30](employeeTable1)"), CAT)
+        op = plan(parse_query("select[Age>30](Employees)"), CAT)
         evaluate(op)
         self.assertEqual(op.evaluations, 3)
 
     def test_join_counter_is_n_times_m(self):
-        op = plan(parse_query("employeeTable2 join[employeeTable2.DID=departmentTable.DID] departmentTable"), CAT)
+        op = plan(parse_query("Emp join[Emp.DID=Dept.DID] Dept"), CAT)
         evaluate(op)
         self.assertEqual(op.comparisons, 4 * 2)
 
     def test_join_equals_times_then_select(self):
-        a = rows("employeeTable2 join[employeeTable2.DID=departmentTable.DID and Age<40] departmentTable")
-        b = rows("select[employeeTable2.DID=departmentTable.DID and Age<40](employeeTable2 times departmentTable)")
+        a = rows("Emp join[Emp.DID=Dept.DID and Age<40] Dept")
+        b = rows("select[Emp.DID=Dept.DID and Age<40](Emp times Dept)")
         self.assertEqual(a, b)
 
     def test_times_size(self):
-        self.assertEqual(len(run("employeeTable1 times departmentTable").rows), 3 * 2)
+        self.assertEqual(len(run("Employees times Dept").rows), 3 * 2)
 
     def test_intersect_and_minus(self):
         self.assertEqual(rows("A2 intersect B2"), [(1,)])
@@ -205,11 +205,11 @@ class ExtraSemantics(unittest.TestCase):
         self.assertEqual(r.attributes[0].qualifier, "A")
 
     def test_rename_then_qualified_select(self):
-        self.assertEqual(len(run("select[E.Age>30](rename[E](employeeTable1))").rows), 1)
+        self.assertEqual(len(run("select[E.Age>30](rename[E](Employees))").rows), 1)
 
     def test_old_name_gone_after_rename(self):
         with self.assertRaises(RANameError):
-            run("select[employeeTable1.Age>30](rename[E](employeeTable1))")
+            run("select[Employees.Age>30](rename[E](Employees))")
 
     def test_empty_relation_has_unknown_types(self):
         # comparing an empty (untyped) column to a string is not a type error
@@ -217,11 +217,11 @@ class ExtraSemantics(unittest.TestCase):
         self.assertEqual(run("Nobody union R22").attributes[1].type, "number")
 
     def test_not_or_semantics(self):
-        self.assertEqual(rows("project[Name](select[not (Age<30) or DID='D2'](employeeTable1))"),
+        self.assertEqual(rows("project[Name](select[not (Age<30) or DID='D2'](Employees))"),
                          [("Alice",), ("John",)])
 
     def test_string_comparison(self):
-        self.assertEqual(rows("project[Name](select[Name<'C'](employeeTable1))"),
+        self.assertEqual(rows("project[Name](select[Name<'C'](Employees))"),
                          [("Alice",), ("Bob",)])
 
     def test_negative_and_decimal_numbers(self):
@@ -229,7 +229,7 @@ class ExtraSemantics(unittest.TestCase):
         self.assertEqual(rows_of("select[v>-30 and v<3](T)", cat), [(-3,), (2.5,)])
 
     def test_cli_empty_result(self):
-        code, out = cli("-d", "data/employees.ra", "select[Age>100](employeeTable1)")
+        code, out = cli("-d", "data/employees.ra", "select[Age>100](Employees)")
         self.assertEqual(code, 0)
         self.assertIn("(0 tuples)", out)
 
