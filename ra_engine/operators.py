@@ -13,9 +13,8 @@ from __future__ import annotations
 
 from typing import List, Optional, Sequence
 
-from .ast_nodes import Join, Project, RelationRef, Rename, Select, SetOp, Times
 from .conditions import compile_condition, resolve
-from .errors import RANameError, SchemaError
+from .errors import SchemaError
 from .relation import Attribute, Relation, Row, distinct, tuple_key
 
 

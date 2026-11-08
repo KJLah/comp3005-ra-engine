@@ -55,10 +55,4 @@ def load_text(text: str, catalog: Optional[Catalog] = None,
     return catalog
 
 
-def load_file(path: str, catalog: Optional[Catalog] = None) -> Catalog:
-    try:
-        with open(path, encoding="utf-8") as f:
-            text = f.read()
-    except OSError as e:
-        raise RANameError(f"cannot read data file '{path}': {e.strerror}")
-    return load_text(text, catalog, path)
+
