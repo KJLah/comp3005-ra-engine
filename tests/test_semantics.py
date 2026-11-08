@@ -14,8 +14,8 @@ sys.path.insert(0, ROOT)
 
 from ra_engine.errors import (LexicalError, ParseError, RANameError,  # noqa: E402
                               RATypeError, SchemaError)
-from ra_engine.loader import load_file, load_text                      # noqa: E402
-from ra_engine.operators import evaluate, plan                        # noqa: E402
+from ra_engine.loader import load_text                                # noqa: E402
+from ra_engine.planner import evaluate, plan                          # noqa: E402
 from ra_engine.parser import parse_query                              # noqa: E402
 from ra_engine.relation import format_relation                        # noqa: E402
 
