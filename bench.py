@@ -28,14 +28,18 @@ import sys
 import time
 
 from gen_data import write_files
-from ra_engine.loader import load_file
-from ra_engine.operators import plan
+from ra_engine.loader import load_text
+from ra_engine.planner import plan
 from ra_engine.parser import parse_query
 
 SIZES = [1000, 2000, 4000, 8000, 16000, 32000, 64000]
 MATCH_RATES = [0.01, 0.1, 1, 10, 100, 500]
 MATCH_N = 2000
 
+# load file function
+def load_file(path, catalog=None):
+    with open(path, encoding="utf-8") as f:
+        return load_text(f.read(), catalog, path)
 
 def load(n, m, match, gen_dir):
     r_path, s_path = write_files(n, m, match, gen_dir)
