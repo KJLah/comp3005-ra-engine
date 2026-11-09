@@ -12,3 +12,7 @@ class RecordError(StorageError):
 
 class PageError(StorageError):
     """Bad slot number, dead slot, or a page that is full."""
+
+
+class BufferPoolError(StorageError):
+    """Buffer-pool misuse: no unpinned frame, unpin at pin count 0, page not resident."""
