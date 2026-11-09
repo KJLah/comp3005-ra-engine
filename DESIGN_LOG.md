@@ -227,3 +227,18 @@ wrong, slow or incomplete: what the problem was and how I found it.
   mistake was found before handing over the code and removed the workaround.
   `test_empty_page_header_bytes` now checks that an empty page starts with
   `01 00 00 00 00 00 00 10` (page_id 1, slot_count 0, free_end 4096).
+
+**What I tried / what broke:**
+- After adding step 2 the suite still showed 120 tests. `test_m1_buffer.py`
+  had not been created in `tests/`, so there were no new tests to find.
+- Once the test file was added, it failed to import:
+  `ImportError: cannot import name 'BufferPool' from 'storage.buffer'`.
+  I had pasted the disk manager code into `storage/buffer.py` by mistake
+  and only changed its first line. Replacing the whole file with the
+  buffer pool code fixed it.
+- VS Code also reported "ENOSPC: no space left on device" when saving.
+  My Mac's disk was full, so some edits were not being saved. I freed
+  space and saved again.
+- I had also saved DESIGN_M1.md inside `tests/` instead of the repo root,
+  and moved it.
+- Final run: <!-- the real count and result, e.g. 134 tests, OK -->
