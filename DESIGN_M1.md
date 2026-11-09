@@ -322,3 +322,16 @@ values so we notice if they ever change.
 6. **`layout` reads the page through a 1-frame pool.** It works out the page type itself: page 0 and every page on the `next_dir` chain are directory pages, the rest are slotted pages. `--hex` adds the raw bytes with decimal offsets (all-zero lines are skipped), which is what section 3.4 shows. `--table catalog` shows `catalog.db`.
 7. **`trace` ignores `--db`.** It runs on an in-memory disk (section 8), but it accepts `--db` so the spec's command line works as written.
 
+## 11. Connecting to the engine ✅
+
+`storage/source.py` turns a stored table into the engine's `TupleSource`
+(week-one refactor, `ra_engine/sources.py`).
+
+**Decisions and why**
+
+1. **The dependency goes one way.** `storage` imports `ra_engine.relation`; `ra_engine` never imports `storage`. The engine still works on CSV-style `.ra` files with no storage at all, and `test_layers.py` still passes.
+2. **Types map INT → number, VARCHAR → string.** These are the engine's two types, so conditions like `a > 1` and `b = 'bob'` type-check the same way they do for in-memory relations.
+3. **The qualifier is the table name.** `R.a` means column `a` of table `R`, the same as for relations loaded from a file, so `qualify()` needs no changes.
+4. **Every `scan()` is a new heap scan.** The engine may scan a table more than once (a join reads its right side for every left row in a nested loop), so a source must not be a one-shot iterator. Each scan goes through the catalog's buffer pool and pins at most 2 pages.
+5. **Nothing stays pinned after a query.** `Scan` reads the source to the end, so the heap scan's `finally` always runs. A test checks that `pinned_count()` is 0 after a join.
+
