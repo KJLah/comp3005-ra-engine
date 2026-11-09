@@ -199,11 +199,45 @@ allows hundreds of columns now; if Module 4 statistics grow past it, they
 will have to move to their own file. <!-- revisit in Module 4 -->
 
 
-## 7. CSV loader [§6] ⏳ step 5
+## 7. CSV loader [§6] ✅
 
-<!-- Hand-written reader (no csv module? decide and say why), quoting rules,
-how a bad INT or an over-long VARCHAR is reported (line number and column),
-and that the load stops at the first error. -->
+**Hand-written parser.** `storage/csvload.py` splits each line character by
+character (no `csv` module, no regex), so every rule below is visible in our
+own code and can be explained in the oral check. Supported: comma-separated
+fields, double-quoted fields that may contain commas, and `""` inside quotes
+for one `"`. A quoted field cannot span lines.
+
+**Choices the specification leaves open:**
+
+1. **All or nothing.** The loader checks the whole file first and only then
+   inserts. If any line is bad, the error names it and the table is left
+   exactly as it was. Why: §6 says "the load stops"; doing a first checking
+   pass means a half-loaded table can never happen, so the catalog's tuple
+   count never disagrees with the file.
+2. **INT fields may have spaces around the number** (`" 42 "` is 42);
+   a sign is allowed; the value must fit in a signed 32-bit integer (§2).
+   **VARCHAR fields are kept exactly**, spaces included, because a space can
+   be real data.
+3. **VARCHAR length is counted in UTF-8 bytes**, because the §2 length
+   prefix counts bytes. `é` counts as 2.
+4. **Empty lines.** A newline at the very end of the file is ignored. Any
+   other empty line is an error (it would be a record with the wrong number
+   of fields).
+5. **Windows line endings** (`\r\n`) are accepted.
+
+**Error messages** (§9 "Bad CSV field: error naming the line number and the
+column"):
+
+| Problem | Message (example) |
+|---|---|
+| INT does not parse | `line 3, column 'c': 'x7' is not a 32-bit INT` |
+| VARCHAR too long | `line 1, column 'b': value is 11 bytes, longer than VARCHAR(10)` |
+| wrong field count | `line 1: expected 3 fields, found 2` |
+| unterminated quote | `line 5, column 2: unterminated quoted field` |
+| record over 4084 bytes | `table W, line 1: record is 4112 bytes, longer than the 4084-byte maximum` |
+
+**After a load** the catalog's page and live-tuple counts are recounted and
+saved, and the buffer pool is flushed, so the files on disk are complete.
 
 ## 8. Traces ✅ (source) / ⏳ step 7 (files)
 
