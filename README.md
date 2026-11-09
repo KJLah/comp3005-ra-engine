@@ -1,9 +1,14 @@
 # Relational Algebra Query Processor
 
-COMP 3005 (Fall 2026), Bonus Project 1. This is a relational algebra engine
-built from a written grammar. It has a hand-written tokenizer, a
-recursive-descent parser, a parse-tree printer, the six core operators plus
-theta join, and a performance study.
+COMP 3005 (Fall 2026). Originally developed for Bonus Project 1, this
+relational algebra engine is now being prepared as a reusable library
+for Project 2. It includes a hand-written tokenizer, recursive-descent
+parser, AST, condition compiler, operator execution, JSON tree
+serialization, command-line interface, and performance study.
+
+The week-one refactor introduces bag semantics: input loading and
+projection preserve duplicate tuples. Duplicate removal is available
+through the explicit `distinct(expr)` operator.
 
 It needs Python 3.8 or newer and no third-party packages. matplotlib is
 optional and is used only by `bench.py` to draw the plot for the report.
@@ -45,13 +50,16 @@ python3 bench.py --max 8000 # quick run
 | `ra_engine/ast_nodes.py` | Parse tree node classes |
 | `ra_engine/printer.py` | Parse tree printer (`--tree`) |
 | `ra_engine/relation.py` | Schemas, tuple equality, result table printing |
-| `ra_engine/loader.py` | Loads relation definition files, with semantic checks |
 | `ra_engine/conditions.py` | Name resolution; compiles conditions to closures (no `eval`) |
-| `ra_engine/operators.py` | The operators: static checks at build time, then bottom-up execution |
+| `ra_engine/loader.py` | Parses relation text, validates schemas and types, and preserves duplicate tuples |
+| `ra_engine/operators.py` | Operator implementations, schema/type checks, and execution |
+| `ra_engine/planner.py` | Builds an operator tree from the AST; provides `plan()` and `evaluate()` |
+| `ra_engine/sources.py` | Tuple-source contract for supplied data sources |
+| `ra_engine/serialization.py` | Versioned JSON serialization and deserialization of AST nodes |
 | `ra_engine/errors.py` | The five error categories, rendered with a position |
 | `gen_data.py` | Data generator for R(a, b) and S(b, c) |
 | `bench.py` | Runs the experiment and writes `results/` |
-| `tests/` | All 25 required cases, the Lecture 02 examples, plus our own (90 tests) |
+| `tests/` | Bonus 1 cases, lecture examples, layer checks, and library integration tests |
 | `data/employees.ra` | Example relations (Employees from section 4.1, Emp, Dept) |
 
 ## Pipeline
@@ -69,17 +77,96 @@ user wrote it. There is no optimisation or rewriting.
 
 ## What is supported
 
-* **Relation files**: `Name(a, b, ...) = { ... }`, one tuple per line. Values
-  can be bare (`John`, `D1`, `32`) or quoted (`'O''Brien, Pat'`). `//`
-  comments and blank lines are allowed. Duplicate tuples collapse. A number
-  column must hold only numbers and a string column only strings.
-* **Unary operators**: `select[cond](e)`, `project[a, b, ...](e)`, `rename[N](e)`.
+* **Relation files**: `Name(a, b, ...) = { ... }`, one tuple per line.
+  Values can be bare (`John`, `D1`, `32`) or quoted (`'O''Brien, Pat'`).
+  `//` comments and blank lines are allowed. Duplicate tuples are
+  preserved. A number column must hold only numbers and a string column
+  only strings.
+* **Unary operators**: `select[cond](e)`, `project[a, b, ...](e)`,
+  `rename[N](e)`, and `distinct(e)`.
 * **Binary operators**: `union`, `intersect`, `minus`, `times`, `join[cond]`.
   They are all left-associative. Precedence, tightest first: unary and
   parentheses, then `times`/`join`, then `intersect`, then `union`/`minus`.
 * **Conditions**: `= != < <= > >=`, combined with `not`, `and` and `or` (in
   that order of precedence) and parentheses. An operand is a number, a quoted
   string, or an attribute (`Age` or `Emp.DID`).
+
+## Library interfaces
+
+The tokenizer, parser, AST and operators can be imported independently.
+They do not print, read interactive input, or open data files. File access
+and console output are handled by the CLI or other callers.
+
+### Standalone conditions
+
+`parse_condition(text)` parses one complete condition and rejects trailing
+tokens. `predicate_for_row(condition, attributes)` compiles the tree into
+a predicate for a tuple with the supplied schema.
+
+```python
+from ra_engine.conditions import predicate_for_row
+from ra_engine.parser import parse_condition
+from ra_engine.relation import Attribute, NUM
+
+schema = [
+    Attribute("R", "b", NUM),
+    Attribute("S", "b", NUM),
+]
+
+condition = parse_condition("R.b = S.b")
+matches = predicate_for_row(condition, schema)
+
+assert matches((7, 7))
+assert not matches((7, 8))
+```
+
+`compile_condition(condition, attributes, split)` also supports separate
+left and right tuples, as used by joins.
+
+Qualified references such as `R.b` are supported in conditions and
+projection. Bare references remain supported for Bonus 1 compatibility
+and must resolve to exactly one column. Renaming changes the qualifier;
+products and joins retain the qualifiers of both inputs.
+
+### Planning and tuple sources
+
+Import `plan()` and `evaluate()` from `ra_engine.planner`.
+
+A supplied tuple source exposes:
+
+- `name`: its relation name.
+- `attributes`: its schema, available without reading tuples.
+- `scan()`: a fresh iterable of tuples for each execution.
+
+The existing in-memory `Relation` implements this contract. Callers may
+also supply generator-backed sources without exposing a `.rows` list.
+Planning uses schema metadata without consuming tuples.
+
+Execution currently materializes inputs and intermediate results.
+This interface does not yet implement Module 2's iterator model.
+
+### JSON trees
+
+`tree_to_json(tree)` and `tree_from_json(text)` are provided by
+`ra_engine.serialization`.
+
+```python
+from ra_engine.parser import parse_query
+from ra_engine.serialization import tree_from_json, tree_to_json
+
+tree = parse_query("distinct(project[R.a](R))")
+restored = tree_from_json(tree_to_json(tree))
+
+assert restored == tree
+```
+
+The version 1 JSON document contains `version` and `tree`. Nodes record
+their type and fields, including nested nodes, qualified references and
+source positions. The decoder validates node tags, fields and types.
+
+The serialized representation is the declarative AST. Operator objects
+and compiled Python predicates are rebuilt after loading.
+
 
 ## Semantic decisions
 
@@ -109,6 +196,17 @@ These are the "decide and document" points from the handout:
 * **Type errors** are detected statically, from the column types, before
   execution. So `select[Age>'30'](R)` fails even when R is empty, as long as
   the type of Age is known.
+* **Bags and duplicate removal.** Loading, selection, projection and rename
+  preserve tuple multiplicity. Products and joins preserve the multiplicity
+  of matching combinations. `distinct(e)` removes duplicate tuples using
+  `tuple_key`. The existing `union`, `intersect` and `minus` operators
+  return distinct tuples even when their inputs contain duplicates.
+  SQL-style `ALL` variants are not implemented.
+
+  Required case 23 now expects duplicate department values after
+  projection. Duplicate removal is tested separately with `distinct`.
+  Case 24 is unchanged: projecting the same column twice remains a
+  schema error.
 
 ### Why the self join needs `rename` (case 20)
 
@@ -135,9 +233,10 @@ python3 ra.py -d data/employees.ra \
 
 ## How this relates to Lecture 02 (Relational Algebra)
 
-`tests/test_lecture_examples.py` runs the worked examples from the lecture
-slides against the same data (`tests/data/lecture.ra`), and all of them give
-the answers shown in class:
+`tests/test_lecture_examples.py` checks the lecture examples against
+`tests/data/lecture.ra`. Selection, joins and set-operation examples
+retain their expected results. Projection now uses bag semantics, so
+examples that require a set-valued projection need explicit `distinct`.
 
 * σ, π and their combinations, including the two "is it commutative?"
   slides. σ commutes, and two σ's equal one σ with `and`. π does not
@@ -148,7 +247,8 @@ the answers shown in class:
   away the extra `Salary` column fixes the compatibility problem.
 * The "Examples" section: students in Ottawa, Makela's email, names with
   titles and marks (a two-join query), and students who take no courses. The
-  duplicate-free `{Alex, John}` note holds.
+  course-name projection produces `{Alex, Alex, Alex, John}` as a bag.
+  Wrapping that projection in `distinct(...)` produces `{Alex, John}`.
 * **Division** is not one of our operators, but the "students who studied
   ALL courses" slide can be written with the core ones:
   `π_sid(R) − π_sid((π_sid(R) × π_cname(Course)) − R)`.
@@ -195,6 +295,7 @@ Syntax error at line 1, column 17 of query: missing ')' to close the '(' opened 
 * There are no nulls, which is out of scope. Every attribute has a value.
 * Joins are nested loops (O(n·m)), as the handout asks. There are no indexes,
   hash joins or sort-merge joins. See REPORT.md for what this costs.
-* Everything is held in memory.
+* Sources may generate tuples, but execution still materializes inputs
+  and intermediate results in memory.
 * A deeply nested query (hundreds of levels) hits Python's recursion limit
   and gets a clean error message instead of a result.
