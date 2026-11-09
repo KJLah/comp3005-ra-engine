@@ -175,3 +175,8 @@ class LibraryTests(unittest.TestCase):
             "└── Project(attrs=[R.a])\n"
             "    └── Relation(R)",
         )
+
+    def test_nested_distinct_round_trip(self):
+        tree = parse_query("project[R.a](distinct(R))")
+        restored = tree_from_json(tree_to_json(tree))
+        self.assertEqual(restored, tree)
