@@ -273,7 +273,7 @@ column"):
 **After a load** the catalog's page and live-tuple counts are recounted and
 saved, and the buffer pool is flushed, so the files on disk are complete.
 
-## 8. Traces ✅ (source) / ⏳ step 7 (files)
+## 8. Traces ✅ (source)
 
 The five published traces will not be released. The professor's reply
 (2026-11-08):
@@ -284,14 +284,6 @@ The five published traces will not be released. The professor's reply
 > unclear, make a reasonable choice and state it in your design document."
 
 So our traces are:
-
-| # | File | What it is |
-|---|---|---|
-| 1 | `traces/t1_worked.txt` | 1 2 3 1 4 2 (§5.3) |
-| 2 | ⏳ | ⏳ |
-| 3 | `traces/t3_scan80x10.txt` | pages 0–79 in order, repeated 10 times (§8) |
-| 4 | ⏳ | ⏳ |
-| 5 | ⏳ | ⏳ |
 
 | # | File | Fetches | What it is, and why we chose it |
 |---|---|---|---|
