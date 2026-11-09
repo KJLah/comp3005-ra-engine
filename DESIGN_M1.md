@@ -18,8 +18,8 @@ Status key: ✅ written · ⏳ filled in at a later step
 | `storage/disk.py` | §1 | `DiskManager` (a `.db` file), `MemoryDisk` (tests and traces) |
 | `storage/buffer.py` | §5 | `BufferPool`, `LRUPolicy`, `ClockPolicy`, `run_trace` |
 | `storage/heap.py` | §4 | `DirectoryPage`, `HeapFile` |
-| `storage/catalog.py` | §6 | catalog ⏳ step 4 |
-| `storage/csvload.py` | §6 | CSV loader ⏳ step 5 |
+| `storage/catalog.py` | §6 | `Catalog`, `TableInfo` |
+| `storage/csvload.py` | §6 | `split_line`, `load_csv` |
 | `storage.py` | §7 | command line ⏳ step 6 |
 
 The library never prints and never reads a file except through the disk
@@ -61,7 +61,7 @@ Why first fit: it is what §4.1 specifies, it is deterministic (the grader
 compares counters), and it keeps older pages full, so a scan touches as few
 pages as possible.
 
-### 3.3 Compaction decision 
+### 3.3 Compaction decision ✅
 
 **We do not compact.** A delete only marks the slot dead (offset 0, length 0);
 the record's bytes stay where they are, and the slot is never reused (§3:
@@ -270,5 +270,5 @@ random uniform trace), and say why each was chosen. -->
 | Unpin at pin count 0 | `BufferPoolError` | `buffer.py` ✅ |
 | Reading a dead slot | `PageError` naming the rid | `page.py` ✅ |
 | Record over 4084 bytes | `RecordError` naming the table (the loader adds the row number, step 5) | `heap.py` ✅ |
-| Bad CSV field | ` LoadError` error naming line and column | ` csvload.py`  ✅ |
+| Bad CSV field | ` LoadError` error naming line and column | `csvload.py`  ✅ |
 
