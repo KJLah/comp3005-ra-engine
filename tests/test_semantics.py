@@ -19,6 +19,10 @@ from ra_engine.planner import evaluate, plan                          # noqa: E4
 from ra_engine.parser import parse_query                              # noqa: E402
 from ra_engine.relation import format_relation                        # noqa: E402
 
+# loading file function
+def load_file(path, catalog=None):
+    with open(path, encoding="utf-8") as f:
+        return load_text(f.read(), catalog, path)
 
 def catalog():
     cat = {}
