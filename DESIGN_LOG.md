@@ -198,3 +198,32 @@ wrong, slow or incomplete: what the problem was and how I found it.
   that test 20b expects. I found this when re-checking the code
   before handing over the final `planner.py`. The fix runs
   `check_no_collisions` before qualifying the join condition.
+
+  ---
+
+## 2026-11-09: Module 1 step 1, records and the slotted page
+
+**Goal:** implement record encoding (section 2) and the slotted page
+(section 3), and reproduce the 3.2 worked example exactly.
+
+**Decisions:**
+- New package `storage/` next to `ra_engine/`: `errors.py`, `record.py`,
+  `page.py`. `SlottedPage` works directly on a 4096-byte bytearray, so a
+  buffer-pool frame can be used as a page without copying.
+- **Largest record is 4084 bytes, not 4088.** Section 3.3 says a record
+  longer than 4088 bytes cannot be stored, but every insert also needs a
+  4-byte slot. On an empty page, free space is 4088, so the largest record
+  that fits is 4088 − 4 = 4084 bytes. Records of 4085–4088 bytes pass the
+  handout's rule but still do not fit. We reject anything over 4084 and
+  explain this in DESIGN_M1.md. `test_largest_record_fits_and_one_more_byte_does_not`
+  checks both sides.
+
+**AI was wrong / slow / incomplete:**
+- **It misjudged a field size.** The AI's first version of `page.py`
+  claimed that `free_end`, a uint16, could not hold 4096 (the value on an
+  empty page), and stored 0 as a stand-in. That was wrong: a uint16 holds
+  values up to 65535. Left in, it would have made our page bytes differ
+  from the handout's format and from the grader's files. The
+  mistake was found before handing over the code and removed the workaround.
+  `test_empty_page_header_bytes` now checks that an empty page starts with
+  `01 00 00 00 00 00 00 10` (page_id 1, slot_count 0, free_end 4096).
