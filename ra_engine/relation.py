@@ -78,6 +78,9 @@ class Relation:
     def display_names(self) -> List[str]:
         return display_names(self.attributes)
 
+    def scan(self) -> Iterable[Row]:
+        return iter(self.rows)
+
 
 def display_names(attributes: Sequence[Attribute]) -> List[str]:
     """Show the bare name when it is unique in the schema, and the qualified
