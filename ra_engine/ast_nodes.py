@@ -71,10 +71,6 @@ Condition = Union[Compare, And, Or, Not]
 
 # ---- relational expressions ------------------------------------------------------
 
-Expr = Union[
-    RelationRef, Select, Project, Rename,
-    Times, Join, SetOp, Distinct,
-]
 @dataclass
 class RelationRef:
     name: str
@@ -133,6 +129,11 @@ Expr = Union[RelationRef, Select, Project, Rename, Times, Join, SetOp]
 
 
 # ---- relation definitions (data files) -------------------------------------------
+
+Expr = Union[
+    RelationRef, Select, Project, Rename,
+    Times, Join, SetOp, Distinct,
+]
 @dataclass
 class RelationDef:
     name: str
