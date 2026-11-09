@@ -20,7 +20,6 @@ Status key: ✅ written · ⏳ filled in at a later step
 | `storage/heap.py` | §4 | `DirectoryPage`, `HeapFile` |
 | `storage/catalog.py` | §6 | `Catalog`, `TableInfo` |
 | `storage/csvload.py` | §6 | `split_line`, `load_csv` |
-| `storage.py` | §7 | command line ⏳ step 6 |
 | `storage/cli.py` | §10 | command line: `create-table`, `load`, `scan`, `layout`, `trace` |
 | `storage/__main__.py` | §10 | lets you run it as `python3 -m storage ...` |
 
