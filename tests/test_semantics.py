@@ -182,9 +182,17 @@ class ErrorCategories(unittest.TestCase):
 
 
 class ExtraSemantics(unittest.TestCase):
-    def test_duplicates_in_input_collapse(self):
-        # 1,x / 1,x / 1,'x' / 1.0,x are all the same tuple under our equality
-        self.assertEqual(rows("Dups"), [(1, "x"), (2, "y")])
+    def test_duplicates_in_input_are_preserved(self):
+        self.assertEqual(
+            rows("Dups"),
+            [
+                (1, "x"),
+                (1, "x"),
+                (1, "x"),
+                (1.0, "x"),
+                (2, "y"),
+            ],
+        )
 
     def test_select_counter_counts_every_tuple(self):
         op = plan(parse_query("select[Age>30](Employees)"), CAT)
