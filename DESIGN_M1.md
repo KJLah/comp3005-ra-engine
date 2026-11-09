@@ -270,5 +270,5 @@ random uniform trace), and say why each was chosen. -->
 | Unpin at pin count 0 | `BufferPoolError` | `buffer.py` ✅ |
 | Reading a dead slot | `PageError` naming the rid | `page.py` ✅ |
 | Record over 4084 bytes | `RecordError` naming the table (the loader adds the row number, step 5) | `heap.py` ✅ |
-| Bad CSV field | error naming line and column | ⏳ step 5 |
+| Bad CSV field | ` LoadError` error naming line and column | ` csvload.py`  ✅ |
 
