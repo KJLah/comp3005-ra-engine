@@ -16,3 +16,7 @@ class PageError(StorageError):
 
 class BufferPoolError(StorageError):
     """Buffer-pool misuse: no unpinned frame, unpin at pin count 0, page not resident."""
+
+
+class CatalogError(StorageError):
+    """Unknown table, duplicate table, or a bad table name."""
