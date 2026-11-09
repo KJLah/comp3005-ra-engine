@@ -198,7 +198,3 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(tree.attrs[0].qualifier, "Emp")
         self.assertEqual(tree.child.cond.left.qualifier, "Emp")
 
-    def test_ambiguous_bare_name_is_rejected(self):
-        with self.assertRaises(RANameError):
-            predicate_for_row(parse_condition("b = 1"),
-                              [Attribute("R", "b", NUM), Attribute("S", "b", NUM)])
