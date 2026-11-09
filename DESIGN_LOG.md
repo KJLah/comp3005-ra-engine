@@ -241,4 +241,4 @@ wrong, slow or incomplete: what the problem was and how I found it.
   space and saved again.
 - I had also saved DESIGN_M1.md inside `tests/` instead of the repo root,
   and moved it.
-- Final run: <!-- the real count and result, e.g. 134 tests, OK -->
+- Final run: 134 tests, OK.
