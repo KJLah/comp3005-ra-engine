@@ -272,3 +272,17 @@ random uniform trace), and say why each was chosen. -->
 | Record over 4084 bytes | `RecordError` naming the table (the loader adds the row number, step 5) | `heap.py` ✅ |
 | Bad CSV field | ` LoadError` error naming line and column | `csvload.py`  ✅ |
 
+## 10. Command line ✅
+
+`storage/cli.py`, run as `python3 -m storage <command>` from the repo root.
+
+**Decisions and why**
+
+1. **`python3 -m storage` instead of a `storage` script.** The spec writes `storage scan ...`. A `storage.py` file at the root would clash with the `storage/` package, so `storage/__main__.py` is the entry point. Nothing needs installing.
+2. **The catalog gets its own small pool (4 frames).** `scan --frames B` builds a fresh pool for the table only. So its counters count only the table's pages, and the same command always prints the same numbers. A scan of a 1 + 9 page table reads 10 pages at B = 2, 8 and 64.
+3. **`scan` needs B ≥ 2.** A scan pins one directory page and one data page at the same time (section 4). B = 1 gives a clear error instead of "no unpinned frame".
+4. **`--limit` closes the scan generator.** Its `finally` unpins the open pages, so stopping early leaves nothing pinned.
+5. **Errors are one line.** Every `StorageError` prints `Error: ...` and exits 1. Anything else prints `Internal error: ...` and exits 2. Neither shows a traceback.
+6. **`layout` reads the page through a 1-frame pool.** It works out the page type itself: page 0 and every page on the `next_dir` chain are directory pages, the rest are slotted pages. `--hex` adds the raw bytes with decimal offsets (all-zero lines are skipped), which is what section 3.4 shows. `--table catalog` shows `catalog.db`.
+7. **`trace` ignores `--db`.** It runs on an in-memory disk (section 8), but it accepts `--db` so the spec's command line works as written.
+
