@@ -182,3 +182,19 @@ wrong, slow or incomplete: what the problem was and how I found it.
 - Tuple sources are independent of in-memory lists, but execution still
   materializes inputs and intermediate results. Module 2's iterator
   interface is future work.
+
+**AI was wrong / slow / incomplete:**
+- **It overclaimed.** It said moving `plan()` into `planner.py` made the
+  operators independent of the parse tree. They still receive condition
+  nodes from `ast_nodes` through `conditions.py`. `test_layers.py` only
+  checks direct imports, so it passed anyway.
+- **A key step was only described in words.** The fixes file gave
+  `qualify()` as code but described "rename plan to _plan and wrap it" in
+  one sentence. I added `qualify()` but nothing called it, so bare names
+  still reached the plan and the JSON.
+- **Its own code had a bug.** Its first `qualify()` resolved names before
+  checking for duplicate columns, so `Emp join[Emp.MgrID=Emp.EID] Emp`
+  would have raised a Name error ("ambiguous") instead of the Schema error
+  that test 20b expects. I found this when re-checking the code
+  before handing over the final `planner.py`. The fix runs
+  `check_no_collisions` before qualifying the join condition.
