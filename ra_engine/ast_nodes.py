@@ -124,14 +124,12 @@ class SetOp:
     right: "Expr"
     pos: Position
 
-
-
-# ---- relation definitions (data files) -------------------------------------------
-
 Expr = Union[
     RelationRef, Select, Project, Rename,
     Times, Join, SetOp, Distinct,
 ]
+
+# ---- relation definitions (data files) -------------------------------------------
 @dataclass
 class RelationDef:
     name: str

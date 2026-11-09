@@ -46,6 +46,13 @@ class LibraryTests(unittest.TestCase):
                 [Attribute("R", "b", NUM)],
             )
 
+    def test_ambiguous_bare_name_is_rejected(self):
+        with self.assertRaises(RANameError):
+            predicate_for_row(
+                parse_condition("b = 1"),
+                [Attribute("R", "b", NUM), Attribute("S", "b", NUM)],
+            )
+
     def test_external_source_is_lazy_and_repeatable(self):
         class Source:
             name = "R"
