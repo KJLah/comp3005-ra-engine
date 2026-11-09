@@ -242,3 +242,52 @@ wrong, slow or incomplete: what the problem was and how I found it.
 - I had also saved DESIGN_M1.md inside `tests/` instead of the repo root,
   and moved it.
 - Final run: 134 tests, OK.
+
+--
+
+## 2026-11-09: Module 1 step 8, querying stored tables with the engine
+
+**Goal:** let the relational algebra engine from Bonus 1 query tables
+stored by Module 1, so `project[b](select[a > 1](R))` reads `R.db`
+through the buffer pool.
+
+**Decisions:**
+- New file `storage/source.py` with `HeapSource`, which implements the
+  engine's `TupleSource` (name, attributes, `scan()`). `sources(catalog)`
+  returns every table in the catalog as the dict that `plan()` expects.
+- INT becomes the engine's number type and VARCHAR becomes string. The
+  qualifier is the table name, so `R.a` works the same as for a relation
+  loaded from a `.ra` file.
+- `storage` imports `ra_engine`, never the other way round, so the engine
+  still works without any storage.
+- Every call to `scan()` starts a new heap scan instead of handing out
+  one iterator that gets used up.
+
+**AI was wrong / slow / incomplete:**
+- **It gave the wrong reason for a decision.** In DESIGN_M1 section 11,
+  the AI explained the "new heap scan on every `scan()`" decision by
+  saying that a join reads its right side again for every row of the
+  left side (a nested-loop join that re-reads its inner input). That is
+  not how our engine works. I checked `JoinOp.execute()` in
+  `ra_engine/operators.py`: it calls `self.left.execute()` and
+  `self.right.execute()` once each, keeps both results in lists, and
+  joins the lists in memory. Each table is scanned once per join.
+- **How we fixed it:** the code was correct, so only the explanation
+  changed. Decision 4 in section 11 now gives the real reasons:
+  (1) the same table can appear twice in one query, for example a
+  self-join with rename, which needs two separate scans of the same
+  file, and (2) the same plan can be evaluated more than once and must
+  return the same rows. If `scan()` returned a single iterator, the
+  second scan would come back empty.
+  `test_scan_returns_rows_and_can_run_twice` checks this.
+- **Lesson:** a design reason has to match our own code, not how
+  databases usually work. I now check claims like this against the
+  source file before pasting them into the design document.
+
+**What I tried / what broke:**
+- At first my step 7 push was missing the 5 files in `traces/`. They were
+  created by `make_traces.py` but not committed. I committed them with
+  this step.
+- Section 8 of DESIGN_M1 still had the old table with the ⏳ rows above
+  the new one. I deleted it.
+- Final run: 188 tests, OK.
