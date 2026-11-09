@@ -96,7 +96,10 @@ class ProjectOp(Operator):
 
     def execute(self) -> List[Row]:
         idx = self.indices
-        return distinct(tuple(row[i] for i in idx) for row in self.child.execute())
+        return [
+            tuple(row[i] for i in idx)
+            for row in self.child.execute()
+        ]
 
 
 class RenameOp(Operator):
