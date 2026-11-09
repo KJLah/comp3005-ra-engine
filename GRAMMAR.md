@@ -187,7 +187,7 @@ is touched.
 
 | Level (1 = binds tightest) | Operators | Associativity | Enforced by rule |
 |---|---|---|---|
-| 1 | `select[…](…)`, `project[…](…)`, `rename[…](…)`, `( … )` | n/a (the input is always parenthesised) | `atom` |
+| 1 | `select[…](…)`, `project[…](…)`, `rename[…](…)`, `distinct(…)`, `( … )` | n/a (the input is always parenthesised) | `atom` |
 | 2 | `times`, `join[c]` | left | `product_expr` |
 | 3 | `intersect` | left | `intersect_expr` |
 | 4 | `union`, `minus` | left | `union_expr` |

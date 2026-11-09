@@ -112,3 +112,73 @@ wrong, slow or incomplete: what the problem was and how I found it.
   the "never show a stack trace" rule (section 6.3). The AI hit this during
   its own test run, not me. `main()` now catches `BrokenPipeError` and exits
   quietly, and `test_no_traceback_when_output_is_cut_off` checks it.
+
+  ---
+
+## 2026-11-08: prepare the engine as a reusable library
+
+**Goal:** Complete the section 1.3 week-one preparation for Project 2.
+
+**Changes made:**
+- Kept the tokenizer, parser, AST and operators as separately importable
+  modules. Moved AST-to-operator planning into `planner.py`. File access
+  is handled by callers rather than the core library.
+- Exposed `parse_condition(text)` for standalone conditions. It rejects
+  trailing tokens. Added `predicate_for_row()` for evaluating a condition
+  against one tuple while retaining the existing two-tuple compiler
+  interface for joins.
+- Retained qualified attribute resolution in conditions and projection.
+  Bare references remain available for Bonus 1 compatibility and must
+  resolve unambiguously.
+- Added versioned JSON serialization and deserialization for AST nodes,
+  including source positions, qualifiers and nested expressions.
+- Introduced a tuple-source contract with schema metadata and `scan()`.
+  Existing in-memory relations implement it, and scans no longer depend
+  directly on a `.rows` list.
+- Changed input loading and projection to preserve duplicate tuples.
+  Added a separate `Distinct` AST node and execution operator, exposed
+  through `distinct(expr)`.
+- Kept union, intersection and difference distinct-valued even when
+  their inputs contain duplicate tuples.
+
+**What broke and how it was fixed:**
+- An `Expr` union referenced classes before their definitions, causing
+  a NameError during import. Removed the early definition and kept one
+  union after the expression classes, including `Distinct`.
+- `Distinct` existed as a node and operator but was not fully connected.
+  Registered the keyword and added parser and planner handling.
+- The tree printer's `Distinct` branch was after an unconditional
+  assertion and could not run. Moved it before the assertion and added
+  the missing import.
+- The new library tests imported `plan` and `evaluate` from their old
+  location. Updated them to import from `ra_engine.planner`.
+- Intersection and difference filtered left tuples without removing
+  duplicates. Wrapped their results in the existing `distinct()` helper
+  to preserve their set semantics with bag-valued inputs.
+- Some tests still expected implicit duplicate removal. Updated the
+  expectations where bag semantics deliberately changed the result.
+
+**Changed test meanings:**
+- Required Bonus 1 case 23 now expects D1 twice and D2 once after
+  projecting Employees.DID. A separate explicit-distinct test checks
+  the original two-department result.
+- Case 24 remains unchanged: duplicate column references are still
+  invalid, independently of duplicate tuple values.
+- The input-duplicate test now expects all five source tuples.
+- The lecture course-name projection now expects three Alex tuples
+  and one John tuple.
+- Division retains its set result through the distinct-valued set
+  operators.
+
+**Verification:**
+- Ran `python3 -m unittest discover -s tests -v` locally.
+- Result: all 107 tests passed in 0.910 seconds.
+- Coverage includes the original numbered cases with revised bag
+  expectations, standalone conditions, qualified names, layer checks,
+  JSON round trips, external tuple sources, bag joins, explicit
+  duplicate removal and tree printing.
+
+**Remaining execution limitation:**
+- Tuple sources are independent of in-memory lists, but execution still
+  materializes inputs and intermediate results. Module 2's iterator
+  interface is future work.
