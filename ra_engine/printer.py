@@ -70,6 +70,8 @@ def expr_tree(node) -> Tree:
     if isinstance(node, SetOp):
         return (SETOP_NAMES[node.op], [expr_tree(node.left), expr_tree(node.right)])
     raise AssertionError(f"unknown expression node {node!r}")
+    if isinstance(node, Distinct):
+        return ("Distinct", [expr_tree(node.child)])
 
 
 def draw(tree: Tree) -> str:

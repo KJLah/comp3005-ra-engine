@@ -222,3 +222,14 @@ class SetOpOp(Operator):
             return [l for l in lrows if tuple_key(l) in right_keys]
         return [l for l in lrows if tuple_key(l) not in right_keys]   # minus
 
+class DistinctOp(Operator):
+    """Remove duplicate tuples using the engine's tuple equality."""
+
+    def __init__(self, child: Operator):
+        self.child = child
+        self.children = [child]
+        self.name = child.name
+        self.attributes = child.attributes
+
+    def execute(self) -> List[Row]:
+        return distinct(self.child.execute())
