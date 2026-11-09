@@ -135,10 +135,14 @@ class LectureExamples(unittest.TestCase):
             [("Alex", "DBMS", 8), ("Alex", "Math", 9), ("Alex", "Physics", 10),
              ("John", "Math", 8)])
 
-    def test_names_that_take_courses_has_no_duplicates(self):
-        # "{Alex, Alex, Alex, John} will be {Alex, John} only"
-        self.assertEqual(rows("project[name](Student join[Student.id=Takes.sid] Takes)"),
-                         [("Alex",), ("John",)])
+    def test_names_that_take_courses_preserves_duplicates(self):
+        self.assertEqual(
+            rows(
+                "project[Student.name]("
+                "Student join[Student.id=Takes.sid] Takes)"
+            ),
+            [("Alex",), ("Alex",), ("Alex",), ("John",)],
+        )
 
     def test_names_that_take_no_courses(self):
         # π name(Student) − π name(Student ⨝ Takes)
