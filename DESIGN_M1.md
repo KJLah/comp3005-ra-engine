@@ -332,6 +332,6 @@ values so we notice if they ever change.
 1. **The dependency goes one way.** `storage` imports `ra_engine.relation`; `ra_engine` never imports `storage`. The engine still works on CSV-style `.ra` files with no storage at all, and `test_layers.py` still passes.
 2. **Types map INT → number, VARCHAR → string.** These are the engine's two types, so conditions like `a > 1` and `b = 'bob'` type-check the same way they do for in-memory relations.
 3. **The qualifier is the table name.** `R.a` means column `a` of table `R`, the same as for relations loaded from a file, so `qualify()` needs no changes.
-4. **Every `scan()` is a new heap scan.** The engine may scan a table more than once (a join reads its right side for every left row in a nested loop), so a source must not be a one-shot iterator. Each scan goes through the catalog's buffer pool and pins at most 2 pages.
+4. **Every `scan()` is a new heap scan.** The same table can appear twice in one query (for example a self-join with rename), and the same plan can be evaluated more than once, so a source must not be a one-shot iterator. Each scan goes through the catalog's buffer pool and pins at most 2 pages. `test_scan_returns_rows_and_can_run_twice` checks this.
 5. **Nothing stays pinned after a query.** `Scan` reads the source to the end, so the heap scan's `finally` always runs. A test checks that `pinned_count()` is 0 after a join.
 
