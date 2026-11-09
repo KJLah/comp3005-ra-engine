@@ -16,6 +16,7 @@ from typing import List, Optional, Sequence
 from .conditions import compile_condition, resolve
 from .errors import SchemaError
 from .relation import Attribute, Relation, Row, distinct, tuple_key
+from .sources import TupleSource
 
 
 class Operator:
@@ -36,14 +37,14 @@ class Operator:
 
 # ---- leaves -----------------------------------------------------------------------
 class Scan(Operator):
-    def __init__(self, relation: Relation):
-        self.relation = relation
-        self.name = relation.name
-        self.attributes = relation.attributes
+    def __init__(self, source: TupleSource):
+        self.source = source
+        self.name = source.name
+        self.attributes = list(source.attributes)
         self.children = []
 
     def execute(self) -> List[Row]:
-        return self.relation.rows
+        return list(self.source.scan())
 
 
 # ---- unary operators ------------------------------------------------------------------
