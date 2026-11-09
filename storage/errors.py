@@ -20,3 +20,7 @@ class BufferPoolError(StorageError):
 
 class CatalogError(StorageError):
     """Unknown table, duplicate table, or a bad table name."""
+
+
+class LoadError(StorageError):
+    """A CSV line that cannot be loaded. The message names the line and column."""
