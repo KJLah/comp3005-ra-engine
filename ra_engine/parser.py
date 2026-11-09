@@ -349,3 +349,17 @@ def parse_query(text: str) -> Expr:
 
 def parse_definitions(text: str) -> List[RelationDef]:
     return Parser(L.tokenize(text)).parse_definitions()
+
+def parse_condition(text: str) -> Condition:
+    """Parse one complete condition without requiring a relational query."""
+    parser = Parser(L.tokenize(text))
+    tree = parser.condition()
+
+    if not parser.at(L.EOF):
+        tok = parser.peek()
+        raise ParseError(
+            f"unexpected {tok.describe()} after a complete condition",
+            tok.pos,
+        )
+
+    return tree
