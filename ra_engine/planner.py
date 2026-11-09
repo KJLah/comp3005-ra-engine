@@ -5,6 +5,7 @@ from .errors import RANameError
 from .operators import (JoinOp, Operator, ProjectOp, RenameOp, Scan, SelectOp,
                         SetOpOp, TimesOp, DistinctOp)
 from .relation import Relation
+from .conditions import qualify_condition, qualify_operand
 
 # ---- building the operator tree from the parse tree ------------------------------------
 def plan(node, catalog) -> Operator:
@@ -39,6 +40,41 @@ def plan(node, catalog) -> Operator:
     if isinstance(node, Distinct):
         return DistinctOp(plan(node.child, catalog))
 
+    raise AssertionError(f"unknown node {node!r}")
+
+def qualify(node, catalog):
+    """Return a copy of the parse tree where every attribute is Table.column.
+
+    Bare names are resolved against the input schema (an ambiguous or
+    unknown name raises RANameError, as before). Planning a subtree reads no
+    tuples, so using plan() here only to learn schemas is cheap.
+    """
+    if isinstance(node, RelationRef):
+        return node
+    if isinstance(node, Select):
+        child = qualify(node.child, catalog)
+        attrs = plan(child, catalog).attributes
+        return Select(qualify_condition(node.cond, attrs), child, node.pos)
+    if isinstance(node, Project):
+        child = qualify(node.child, catalog)
+        attrs = plan(child, catalog).attributes
+        return Project([qualify_operand(a, attrs) for a in node.attrs],
+                       child, node.pos)
+    if isinstance(node, Rename):
+        return Rename(node.new_name, qualify(node.child, catalog), node.pos)
+    if isinstance(node, Distinct):
+        return Distinct(qualify(node.child, catalog), node.pos)
+    if isinstance(node, Times):
+        return Times(qualify(node.left, catalog), qualify(node.right, catalog),
+                     node.pos)
+    if isinstance(node, Join):
+        left = qualify(node.left, catalog)
+        right = qualify(node.right, catalog)
+        attrs = plan(left, catalog).attributes + plan(right, catalog).attributes
+        return Join(qualify_condition(node.cond, attrs), left, right, node.pos)
+    if isinstance(node, SetOp):
+        return SetOp(node.op, qualify(node.left, catalog),
+                     qualify(node.right, catalog), node.pos)
     raise AssertionError(f"unknown node {node!r}")
 
 

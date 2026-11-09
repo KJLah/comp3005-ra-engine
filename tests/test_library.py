@@ -187,3 +187,18 @@ class LibraryTests(unittest.TestCase):
         tree = parse_query("project[R.a](distinct(R))")
         restored = tree_from_json(tree_to_json(tree))
         self.assertEqual(restored, tree)
+
+
+    def test_bare_names_become_qualified(self):
+        from ra_engine.planner import qualify
+        cat = load_text("Emp(id, age) = {\n1, 30\n}\nDept(id) = {\n1\n}")
+        tree = qualify(parse_query(
+            "project[age](select[age>20](Emp join[Emp.id=Dept.id] Dept))"), cat)
+        self.assertNotIn('"qualifier": null', tree_to_json(tree))
+        self.assertEqual(tree.attrs[0].qualifier, "Emp")
+        self.assertEqual(tree.child.cond.left.qualifier, "Emp")
+
+    def test_ambiguous_bare_name_is_rejected(self):
+        with self.assertRaises(RANameError):
+            predicate_for_row(parse_condition("b = 1"),
+                              [Attribute("R", "b", NUM), Attribute("S", "b", NUM)])
