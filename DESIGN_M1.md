@@ -146,11 +146,58 @@ Choices the specification leaves open:
    This is also what reproduces 5.3: after loading 1, 2, 3 the hand is back
    at frame 0, so fetching 4 clears 1, 2, 3 and evicts 1.
 
-## 6. Catalog [§6] ⏳ step 4
+## 6. Catalog [§6] ✅
 
-<!-- Required: our on-page format for catalog.db. For each table: name,
-ordered columns with type and length, data file name, number of pages,
-number of live tuples. Leave room for Module 4 statistics (say how). -->
+**Where it lives.** `catalog.db` is itself a heap file with exactly the §4
+layout (page 0 is its first directory page), so it is read and written
+through the buffer pool like any other data, as §6 requires. Each table is one
+record in it.
+
+**Record format** (all integers little-endian, strings are a uint16 byte
+length followed by UTF-8):
+
+| Field | Size | Notes |
+|---|---|---|
+| format version | 1 byte | currently 1 |
+| table name | 2 + n | |
+| data file name | 2 + n | always `<name>.db` |
+| number of pages | 4 (uint32) | directory + data pages |
+| number of live tuples | 4 (uint32) | |
+| column count | 2 (uint16) | |
+| per column: name | 2 + n | in schema order |
+| per column: type | 1 | 0 = INT, 1 = VARCHAR |
+| per column: length | 2 (uint16) | n of VARCHAR(n); 0 for INT |
+| statistics | 2 + n | UTF-8 JSON, `{}` in Module 1 |
+
+Example: table `R(a INT, b VARCHAR(20), c INT)` with 3 pages and 300 tuples
+is one 42-byte record. <!-- check with `storage layout --db DIR --table catalog --page 1` at step 6 -->
+
+**Room for Module 4.** The statistics field is last and variable length, so
+Module 4 can store distinct counts, min/max or histograms there without
+changing any field before it. The version byte lets a later format be told
+apart from this one.
+
+**Why a heap file and not a custom page format.** It reuses code that is
+already tested (insert, delete, the two-pin scan), and §6 only asks that the
+catalog is read through the buffer pool. A table lookup scans the catalog,
+which is a few pages at most for the number of tables in this project.
+
+**Updating counts.** `update()` deletes the table's old record and inserts the
+new one (its rid may change; nothing stores catalog rids). Since we do not
+compact (3.3), each update leaves a dead slot behind in catalog.db; at a few
+dozen bytes per update this does not matter for this project.
+
+**One DiskManager per file.** The buffer pool tells files apart by their
+DiskManager object (decision 5.1), so the catalog keeps exactly one per file
+and every heap for that table uses it.
+
+**Table names.** Letters, digits and `_`, starting with a letter or `_`,
+because the name becomes a file name; `catalog` is reserved.
+
+**Limit.** A catalog record must fit on one page (4084 bytes, 3.1). That
+allows hundreds of columns now; if Module 4 statistics grow past it, they
+will have to move to their own file. <!-- revisit in Module 4 -->
+
 
 ## 7. CSV loader [§6] ⏳ step 5
 
