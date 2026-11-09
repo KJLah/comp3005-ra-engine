@@ -17,13 +17,21 @@ import os
 import sys
 import time
 
-from ra_engine.errors import RAError
-from ra_engine.loader import load_file
-from ra_engine.operators import evaluate, plan
+from ra_engine.errors import RAError, RANameError
+from ra_engine.loader import load_text
+from ra_engine.planner import evaluate, plan
 from ra_engine.parser import parse_query
 from ra_engine.printer import format_tree
 from ra_engine.relation import format_relation
 
+# loading file function
+def load_file(path, catalog):
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError as e:
+        raise RANameError(f"cannot read data file '{path}': {e.strerror}")
+    load_text(text, catalog, path)
 
 def run_one(query: str, catalog, tree_only: bool, stats: bool) -> int:
     try:

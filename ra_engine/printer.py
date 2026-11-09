@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import List, Tuple
 
 from .ast_nodes import (And, Attr, Compare, Join, Not, Num, Or, Project,
-                        RelationRef, Rename, Select, SetOp, Str, Times)
+                        RelationRef, Rename, Select, SetOp, Str, Times, Distinct)
 
 CMP_NAMES = {"=": "Eq", "!=": "Ne", "<": "Lt", "<=": "Le", ">": "Gt", ">=": "Ge"}
 SETOP_NAMES = {"union": "Union", "intersect": "Intersect", "minus": "Minus"}
@@ -68,7 +68,13 @@ def expr_tree(node) -> Tree:
         return with_condition("Join", node.cond,
                               [expr_tree(node.left), expr_tree(node.right)])
     if isinstance(node, SetOp):
-        return (SETOP_NAMES[node.op], [expr_tree(node.left), expr_tree(node.right)])
+        return (
+            SETOP_NAMES[node.op],
+            [expr_tree(node.left), expr_tree(node.right)],
+        )
+    if isinstance(node, Distinct):
+        return ("Distinct", [expr_tree(node.child)])
+
     raise AssertionError(f"unknown expression node {node!r}")
 
 

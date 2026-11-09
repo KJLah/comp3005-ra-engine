@@ -12,9 +12,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 
 from ra_engine.errors import RANameError, SchemaError  # noqa: E402
-from ra_engine.loader import load_file                 # noqa: E402
-from ra_engine.operators import evaluate, plan         # noqa: E402
+from ra_engine.loader import load_text                 # noqa: E402
+from ra_engine.planner import evaluate, plan           # noqa: E402
 from ra_engine.parser import parse_query               # noqa: E402
+
+# loading file function
+def load_file(path, catalog=None):
+    with open(path, encoding="utf-8") as f:
+        return load_text(f.read(), catalog, path)
 
 CAT = load_file(os.path.join(HERE, "data", "lecture.ra"))
 
@@ -130,10 +135,14 @@ class LectureExamples(unittest.TestCase):
             [("Alex", "DBMS", 8), ("Alex", "Math", 9), ("Alex", "Physics", 10),
              ("John", "Math", 8)])
 
-    def test_names_that_take_courses_has_no_duplicates(self):
-        # "{Alex, Alex, Alex, John} will be {Alex, John} only"
-        self.assertEqual(rows("project[name](Student join[Student.id=Takes.sid] Takes)"),
-                         [("Alex",), ("John",)])
+    def test_names_that_take_courses_preserves_duplicates(self):
+        self.assertEqual(
+            rows(
+                "project[Student.name]("
+                "Student join[Student.id=Takes.sid] Takes)"
+            ),
+            [("Alex",), ("Alex",), ("Alex",), ("John",)],
+        )
 
     def test_names_that_take_no_courses(self):
         # π name(Student) − π name(Student ⨝ Takes)

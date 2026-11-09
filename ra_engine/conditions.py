@@ -100,3 +100,10 @@ def _compile_compare(cond: Compare, attributes, split) -> Predicate:
                           cond.pos)
     f = COMPARATORS[cond.op]
     return lambda l, r: f(get_a(l, r), get_b(l, r))
+
+def predicate_for_row(cond, attributes):
+    """Compile a condition for a single tuple with the supplied schema."""
+    predicate = compile_condition(
+        cond, attributes, split=len(attributes)
+    )
+    return lambda row: predicate(row, ())

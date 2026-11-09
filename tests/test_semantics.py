@@ -14,11 +14,15 @@ sys.path.insert(0, ROOT)
 
 from ra_engine.errors import (LexicalError, ParseError, RANameError,  # noqa: E402
                               RATypeError, SchemaError)
-from ra_engine.loader import load_file, load_text                      # noqa: E402
-from ra_engine.operators import evaluate, plan                        # noqa: E402
+from ra_engine.loader import load_text                                # noqa: E402
+from ra_engine.planner import evaluate, plan                          # noqa: E402
 from ra_engine.parser import parse_query                              # noqa: E402
 from ra_engine.relation import format_relation                        # noqa: E402
 
+# loading file function
+def load_file(path, catalog=None):
+    with open(path, encoding="utf-8") as f:
+        return load_text(f.read(), catalog, path)
 
 def catalog():
     cat = {}
@@ -78,8 +82,15 @@ class Semantics_7_3(unittest.TestCase):
         with self.assertRaises(RATypeError):
             run("select[Age>'30'](R22)")
 
-    def test_23_project_removes_duplicates(self):
-        r = run("project[DID](Employees)")
+    def test_23_project_preserves_duplicates(self):
+        r = run("project[Employees.DID](Employees)")
+        self.assertEqual(
+            sorted(r.rows),
+            [("D1",), ("D1",), ("D2",)],
+        )
+
+    def test_explicit_distinct_removes_duplicates(self):
+        r = run("distinct(project[Employees.DID](Employees))")
         self.assertEqual(sorted(r.rows), [("D1",), ("D2",)])
 
     def test_24_project_same_attribute_twice(self):
@@ -171,9 +182,17 @@ class ErrorCategories(unittest.TestCase):
 
 
 class ExtraSemantics(unittest.TestCase):
-    def test_duplicates_in_input_collapse(self):
-        # 1,x / 1,x / 1,'x' / 1.0,x are all the same tuple under our equality
-        self.assertEqual(rows("Dups"), [(1, "x"), (2, "y")])
+    def test_duplicates_in_input_are_preserved(self):
+        self.assertEqual(
+            rows("Dups"),
+            [
+                (1, "x"),
+                (1, "x"),
+                (1, "x"),
+                (1.0, "x"),
+                (2, "y"),
+            ],
+        )
 
     def test_select_counter_counts_every_tuple(self):
         op = plan(parse_query("select[Age>30](Employees)"), CAT)

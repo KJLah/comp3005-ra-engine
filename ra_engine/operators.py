@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from typing import List, Optional, Sequence
 
-from .ast_nodes import Join, Project, RelationRef, Rename, Select, SetOp, Times
 from .conditions import compile_condition, resolve
-from .errors import RANameError, SchemaError
+from .errors import SchemaError
 from .relation import Attribute, Relation, Row, distinct, tuple_key
+from .sources import TupleSource
 
 
 class Operator:
@@ -37,14 +37,14 @@ class Operator:
 
 # ---- leaves -----------------------------------------------------------------------
 class Scan(Operator):
-    def __init__(self, relation: Relation):
-        self.relation = relation
-        self.name = relation.name
-        self.attributes = relation.attributes
+    def __init__(self, source: TupleSource):
+        self.source = source
+        self.name = source.name
+        self.attributes = list(source.attributes)
         self.children = []
 
     def execute(self) -> List[Row]:
-        return self.relation.rows
+        return list(self.source.scan())
 
 
 # ---- unary operators ------------------------------------------------------------------
@@ -70,14 +70,14 @@ class SelectOp(Operator):
             if pred(row, None):
                 out.append(row)
         self.evaluations = count
-        return out                        # a subset of a set is a set: no dedup needed
+        return out                        # selection preserves the multiplicity of matching rows
 
     def counters(self):
         return super().counters() + [(f"{self.label}: tuples evaluated", self.evaluations)]
 
 
 class ProjectOp(Operator):
-    """Output schema = the listed attributes, in the listed order. Duplicates are removed."""
+    """Project the listed attributes in order, preserving duplicate tuples."""
 
     def __init__(self, child: Operator, attrs):
         self.child = child
@@ -96,7 +96,10 @@ class ProjectOp(Operator):
 
     def execute(self) -> List[Row]:
         idx = self.indices
-        return distinct(tuple(row[i] for i in idx) for row in self.child.execute())
+        return [
+            tuple(row[i] for i in idx)
+            for row in self.child.execute()
+        ]
 
 
 class RenameOp(Operator):
@@ -144,7 +147,7 @@ class TimesOp(Operator):
     def execute(self) -> List[Row]:
         lrows = self.left.execute()
         rrows = self.right.execute()
-        return [l + r for l in lrows for r in rrows]   # set x set is already a set
+        return [l + r for l in lrows for r in rrows] 
 
 
 class JoinOp(Operator):
@@ -212,41 +215,31 @@ class SetOpOp(Operator):
     def execute(self) -> List[Row]:
         lrows = self.left.execute()
         rrows = self.right.execute()
+
         if self.op == "union":
             return distinct(lrows + rrows)
-        right_keys = {tuple_key(r) for r in rrows}
+
+        right_keys = {tuple_key(row) for row in rrows}
+
         if self.op == "intersect":
-            return [l for l in lrows if tuple_key(l) in right_keys]
-        return [l for l in lrows if tuple_key(l) not in right_keys]   # minus
+            return distinct(
+                row for row in lrows
+                if tuple_key(row) in right_keys
+            )
 
+        return distinct(
+            row for row in lrows
+            if tuple_key(row) not in right_keys
+        )
 
-# ---- building the operator tree from the parse tree ------------------------------------
-def plan(node, catalog) -> Operator:
-    """Turn a parse tree into an operator tree, doing every static check on the way."""
-    if isinstance(node, RelationRef):
-        if node.name not in catalog:
-            known = ", ".join(sorted(catalog)) or "(no relations loaded; use -d FILE)"
-            raise RANameError(f"unknown relation '{node.name}'; known relations: {known}",
-                              node.pos)
-        return Scan(catalog[node.name])
-    if isinstance(node, Select):
-        return SelectOp(plan(node.child, catalog), node.cond,
-                        label=f"select at column {node.pos.col}")
-    if isinstance(node, Project):
-        return ProjectOp(plan(node.child, catalog), node.attrs)
-    if isinstance(node, Rename):
-        return RenameOp(plan(node.child, catalog), node.new_name, node.pos)
-    if isinstance(node, Times):
-        return TimesOp(plan(node.left, catalog), plan(node.right, catalog),
-                       node.pos)
-    if isinstance(node, Join):
-        return JoinOp(plan(node.left, catalog), plan(node.right, catalog),
-                      node.cond, node.pos, label=f"join at column {node.pos.col}")
-    if isinstance(node, SetOp):
-        return SetOpOp(node.op, plan(node.left, catalog),
-                       plan(node.right, catalog), node.pos)
-    raise AssertionError(f"unknown node {node!r}")
+class DistinctOp(Operator):
+    """Remove duplicate tuples using the engine's tuple equality."""
 
+    def __init__(self, child: Operator):
+        self.child = child
+        self.children = [child]
+        self.name = child.name
+        self.attributes = child.attributes
 
-def evaluate(op: Operator) -> Relation:
-    return Relation(op.name, op.attributes, op.execute())
+    def execute(self) -> List[Row]:
+        return distinct(self.child.execute())

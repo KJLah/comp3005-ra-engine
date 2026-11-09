@@ -48,17 +48,11 @@ def load_text(text: str, catalog: Optional[Catalog] = None,
                             f"{types[i]}s); quote numbers that should be strings", pos)
 
             attributes = [Attribute(d.name, n, t) for n, t in zip(d.attrs, types)]
-            rows = distinct(tuple(r) for r in d.rows)  # a relation is a set
+            rows = [tuple(r) for r in d.rows]
             catalog[d.name] = Relation(d.name, attributes, rows)
     except RAError as e:
         raise e.attach_source(text, source_name)
     return catalog
 
 
-def load_file(path: str, catalog: Optional[Catalog] = None) -> Catalog:
-    try:
-        with open(path, encoding="utf-8") as f:
-            text = f.read()
-    except OSError as e:
-        raise RANameError(f"cannot read data file '{path}': {e.strerror}")
-    return load_text(text, catalog, path)
+
