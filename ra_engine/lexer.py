@@ -36,7 +36,7 @@ EOF = "EOF"
 
 # Soft keywords: reserved as relation names, allowed as attribute names.
 OPERATOR_KEYWORDS = frozenset(
-    ["select", "project", "rename", "union", "intersect", "minus", "times", "join"]
+    ["select", "project", "rename", "union", "intersect", "minus", "times", "join", "distinct"]
 )
 # Hard keywords: reserved everywhere.
 CONDITION_KEYWORDS = frozenset(["and", "or", "not"])

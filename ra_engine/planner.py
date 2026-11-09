@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .ast_nodes import Join, Project, RelationRef, Rename, Select, SetOp, Times
+from .ast_nodes import Join, Project, RelationRef, Rename, Select, SetOp, Times, Distinct
 from .errors import RANameError
 from .operators import (JoinOp, Operator, ProjectOp, RenameOp, Scan, SelectOp,
-                        SetOpOp, TimesOp)
+                        SetOpOp, TimesOp, DistinctOp)
 from .relation import Relation
 
 # ---- building the operator tree from the parse tree ------------------------------------
@@ -29,8 +29,16 @@ def plan(node, catalog) -> Operator:
         return JoinOp(plan(node.left, catalog), plan(node.right, catalog),
                       node.cond, node.pos, label=f"join at column {node.pos.col}")
     if isinstance(node, SetOp):
-        return SetOpOp(node.op, plan(node.left, catalog),
-                       plan(node.right, catalog), node.pos)
+        return SetOpOp(
+            node.op,
+            plan(node.left, catalog),
+            plan(node.right, catalog),
+            node.pos,
+        )
+
+    if isinstance(node, Distinct):
+        return DistinctOp(plan(node.child, catalog))
+
     raise AssertionError(f"unknown node {node!r}")
 
 

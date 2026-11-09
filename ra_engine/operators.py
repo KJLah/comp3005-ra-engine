@@ -70,14 +70,14 @@ class SelectOp(Operator):
             if pred(row, None):
                 out.append(row)
         self.evaluations = count
-        return out                        # a subset of a set is a set: no dedup needed
+        return out                        # selection preserves the multiplicity of matching rows
 
     def counters(self):
         return super().counters() + [(f"{self.label}: tuples evaluated", self.evaluations)]
 
 
 class ProjectOp(Operator):
-    """Output schema = the listed attributes, in the listed order. Duplicates are removed."""
+    """Project the listed attributes in order, preserving duplicate tuples."""
 
     def __init__(self, child: Operator, attrs):
         self.child = child
@@ -147,7 +147,7 @@ class TimesOp(Operator):
     def execute(self) -> List[Row]:
         lrows = self.left.execute()
         rrows = self.right.execute()
-        return [l + r for l in lrows for r in rrows]   # set x set is already a set
+        return [l + r for l in lrows for r in rrows] 
 
 
 class JoinOp(Operator):
@@ -215,12 +215,22 @@ class SetOpOp(Operator):
     def execute(self) -> List[Row]:
         lrows = self.left.execute()
         rrows = self.right.execute()
+
         if self.op == "union":
             return distinct(lrows + rrows)
-        right_keys = {tuple_key(r) for r in rrows}
+
+        right_keys = {tuple_key(row) for row in rrows}
+
         if self.op == "intersect":
-            return [l for l in lrows if tuple_key(l) in right_keys]
-        return [l for l in lrows if tuple_key(l) not in right_keys]   # minus
+            return distinct(
+                row for row in lrows
+                if tuple_key(row) in right_keys
+            )
+
+        return distinct(
+            row for row in lrows
+            if tuple_key(row) not in right_keys
+        )
 
 class DistinctOp(Operator):
     """Remove duplicate tuples using the engine's tuple equality."""

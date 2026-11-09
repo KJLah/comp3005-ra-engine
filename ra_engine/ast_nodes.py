@@ -125,8 +125,6 @@ class SetOp:
     pos: Position
 
 
-Expr = Union[RelationRef, Select, Project, Rename, Times, Join, SetOp]
-
 
 # ---- relation definitions (data files) -------------------------------------------
 

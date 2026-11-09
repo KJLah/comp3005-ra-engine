@@ -11,7 +11,7 @@ from typing import List, Optional
 from . import lexer as L
 from .ast_nodes import (And, Attr, Compare, Condition, Expr, Join, Not, Num, Or,
                         Project, RelationDef, RelationRef, Rename, Select, SetOp,
-                        Str, Times)
+                        Str, Times, Distinct)
 from .errors import ParseError
 from .lexer import Token
 
@@ -112,7 +112,8 @@ class Parser:
                 left = Join(cond, left, right, op.pos)
         return left
 
-    # atom = select[..](expr) | project[..](expr) | rename[..](expr) | "(" expr ")" | IDENT
+    # atom = select[..](expr) | project[..](expr) | rename[..](expr)
+    #      | distinct(expr) | "(" expr ")" | IDENT
     def atom(self) -> Expr:
         tok = self.peek()
 
@@ -140,6 +141,15 @@ class Parser:
             child = self.parenthesised_input("rename")
             return Rename(name_tok.text, child, tok.pos)
 
+        if self.at_keyword("distinct"):
+            self.advance()
+            opener = self.expect(
+                L.LPAREN, "'(' after 'distinct'"
+            )
+            child = self.expr()
+            self.expect_close(L.RPAREN, opener)
+            return Distinct(child, tok.pos)
+        
         if tok.kind == L.LPAREN:
             opener = self.advance()
             inner = self.expr()
@@ -151,7 +161,9 @@ class Parser:
             return RelationRef(tok.text, tok.pos)
 
         # everything below is an error: say what was expected and what was found
-        expected = "a relation name, '(' or select/project/rename"
+        expected = (
+            "a relation name, '(' or select/project/rename/distinct"
+        )
         if tok.kind == L.KEYWORD and tok.text in L.OPERATOR_KEYWORDS:
             raise ParseError(f"missing operand: expected {expected} before "
                              f"'{tok.text}'", tok.pos)

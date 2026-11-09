@@ -5,7 +5,7 @@ from ra_engine import ast_nodes as A
 from ra_engine.conditions import predicate_for_row
 from ra_engine.errors import ParseError, Position, RANameError
 from ra_engine.loader import load_text
-from ra_engine.operators import evaluate, plan
+from ra_engine.planner import evaluate, plan
 from ra_engine.parser import parse_condition, parse_query
 from ra_engine.relation import Attribute, NUM
 from ra_engine.serialization import tree_from_json, tree_to_json
@@ -163,3 +163,15 @@ class LibraryTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             tree_from_json(json.dumps(payload))
+
+    def test_distinct_tree_is_printable(self):
+        from ra_engine.printer import format_tree
+
+        tree = parse_query("distinct(project[R.a](R))")
+
+        self.assertEqual(
+            format_tree(tree),
+            "Distinct\n"
+            "└── Project(attrs=[R.a])\n"
+            "    └── Relation(R)",
+        )
