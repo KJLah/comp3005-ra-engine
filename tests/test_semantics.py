@@ -82,8 +82,15 @@ class Semantics_7_3(unittest.TestCase):
         with self.assertRaises(RATypeError):
             run("select[Age>'30'](R22)")
 
-    def test_23_project_removes_duplicates(self):
-        r = run("project[DID](Employees)")
+    def test_23_project_preserves_duplicates(self):
+        r = run("project[Employees.DID](Employees)")
+        self.assertEqual(
+            sorted(r.rows),
+            [("D1",), ("D1",), ("D2",)],
+        )
+
+    def test_explicit_distinct_removes_duplicates(self):
+        r = run("distinct(project[Employees.DID](Employees))")
         self.assertEqual(sorted(r.rows), [("D1",), ("D2",)])
 
     def test_24_project_same_attribute_twice(self):
