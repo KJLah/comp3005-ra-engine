@@ -12,7 +12,7 @@ Status key: ✅ written · ⏳ filled in at a later step
 
 | File | Spec | Contents |
 |---|---|---|
-| `storage/errors.py` | §9 | `StorageError`, `RecordError`, `PageError`, `BufferPoolError` |
+| `storage/errors.py` | §9 | `StorageError`, `RecordError`, `PageError`, `BufferPoolError`, `CatalogError`, `LoadError` |
 | `storage/record.py` | §2 | schema parsing, record `encode` / `decode` |
 | `storage/page.py` | §3 | `SlottedPage` |
 | `storage/disk.py` | §1 | `DiskManager` (a `.db` file), `MemoryDisk` (tests and traces) |
@@ -21,9 +21,11 @@ Status key: ✅ written · ⏳ filled in at a later step
 | `storage/catalog.py` | §6 | `Catalog`, `TableInfo` |
 | `storage/csvload.py` | §6 | `split_line`, `load_csv` |
 | `storage.py` | §7 | command line ⏳ step 6 |
+| `storage/cli.py` | §10 | command line: `create-table`, `load`, `scan`, `layout`, `trace` |
+| `storage/__main__.py` | §10 | lets you run it as `python3 -m storage ...` |
 
 The library never prints and never reads a file except through the disk
-manager. Only `storage.py` prints.
+manager. Only `storage/cli.py` prints or opens a user's file.
 
 ## 2. Records [§2] ✅
 
