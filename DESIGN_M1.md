@@ -17,7 +17,7 @@ Status key: ✅ written · ⏳ filled in at a later step
 | `storage/page.py` | §3 | `SlottedPage` |
 | `storage/disk.py` | §1 | `DiskManager` (a `.db` file), `MemoryDisk` (tests and traces) |
 | `storage/buffer.py` | §5 | `BufferPool`, `LRUPolicy`, `ClockPolicy`, `run_trace` |
-| `storage/heap.py` | §4 | heap file ⏳ step 3 |
+| `storage/heap.py` | §4 | `DirectoryPage`, `HeapFile` |
 | `storage/catalog.py` | §6 | catalog ⏳ step 4 |
 | `storage/csvload.py` | §6 | CSV loader ⏳ step 5 |
 | `storage.py` | §7 | command line ⏳ step 6 |
@@ -48,17 +48,35 @@ the 4088 rule but still do not fit, so we reject anything over 4084, with an
 error naming the table and the row. Test:
 `test_largest_record_fits_and_one_more_byte_does_not`.
 
-### 3.2 Free-space strategy ⏳ step 3
+### 3.2 Free-space strategy ✅
 
-<!-- How insert picks a page (first fit over the directory, §4.1), what
-free_bytes in a directory entry means (free_end − (8 + 4 × slot_count)), and
-when it is updated (after every insert and delete). -->
+Each directory entry stores its data page's free space exactly as §3 defines
+it: `free_end − (8 + 4 × slot_count)`. An insert of a record of L bytes goes
+to the **first** data page, in directory order, whose `free_bytes ≥ L + 4`
+(first fit, §4.1). If no page has room, a new data page is appended. The
+entry is rewritten after every insert, so the directory never has to open a
+data page to find out whether it has room.
 
-### 3.3 Compaction decision ⏳ step 3
+Why first fit: it is what §4.1 specifies, it is deterministic (the grader
+compares counters), and it keeps older pages full, so a scan touches as few
+pages as possible.
 
-<!-- Decide: no compaction (simplest; deleted space is never reused, as in the
-3.2 example), or compaction and when it runs. If you implement it, the spec
-requires a before/after page dump here. -->
+### 3.3 Compaction decision 
+
+**We do not compact.** A delete only marks the slot dead (offset 0, length 0);
+the record's bytes stay where they are, and the slot is never reused (§3:
+"Slot numbers are never reused"). As the 3.2 example shows, the deleted space
+is therefore not usable again, and the directory's free_bytes does not change.
+
+Why: §3.2 says compaction is optional. Without it a rid can never move,
+nothing has to be rewritten on delete, and the page bytes match the 3.2
+example exactly. The cost is wasted space in tables with many deletes, which
+no Module 1 measurement depends on.
+
+Delete still follows §4.1 ("update directory free_bytes"): it finds the
+entry for the page and rewrites it. Since the value cannot change without
+compaction, the directory page is only marked dirty if it actually changed,
+so a delete never causes a needless write.
 
 ### 3.4 Byte-level diagram of a real page ⏳ step 6
 
@@ -66,11 +84,32 @@ requires a before/after page dump here. -->
 `storage layout`) and annotate the header, slot directory, free space and
 records byte by byte. -->
 
-## 4. Heap file [§4] ⏳ step 3
+## 4. Heap file [§4] ✅
 
-<!-- Directory page format (as specified), first-fit insert, how a new
-directory page is chained when one fills (681 entries), and how the scan
-keeps at most one directory page and one data page pinned. -->
+Directory pages use exactly the §4 layout (page_id, next_dir_page with
+0xFFFFFFFF for none, entry_count, 6-byte entries; 681 per page). Page 0 is
+always the first directory page.
+
+- **Where new pages go.** Every new page (data or directory) is appended at
+  the end of the file. When the last directory page is full (681 entries),
+  a new directory page is appended, linked from the old one, and the new
+  data page is listed there. So directory and data pages can interleave in
+  the file; the directory chain is the only way to find them.
+- **Pinning.** No heap-file method ever holds more than one directory page
+  and one data page pinned at once, so the heap file needs a pool of at
+  least B = 2. With B = 1, insert fails with "no unpinned frame available"
+  (tested).
+- **Scan.** `scan()` is a generator: it pins one directory page, then for
+  each entry pins the data page, yields its live records one at a time,
+  and unpins the data page before moving to the next entry. Nothing is
+  collected in a list. If the caller stops early, `finally` blocks unpin
+  both pages. Tested on a table 20× larger than the pool (80 data pages,
+  B = 4): at most 2 pages are ever pinned.
+- **Scan cost.** On a cold pool, a scan reads every page exactly once
+  (1 directory + N data pages), whatever B is, because each page is
+  visited once in order. Tested at B = 2, 8 and 64 (11 reads for 10 data
+  pages in every case).
+- **get(rid)** fetches only the data page (one page access).
 
 ## 5. Buffer pool [§5] ✅
 
@@ -149,6 +188,6 @@ random uniform trace), and say why each was chosen. -->
 | Evicting a pinned page | never happens; fetch raises `BufferPoolError` "no unpinned frame available" | `buffer.py` ✅ |
 | Unpin at pin count 0 | `BufferPoolError` | `buffer.py` ✅ |
 | Reading a dead slot | `PageError` naming the rid | `page.py` ✅ |
-| Record over 4084 bytes | error naming table and row | ⏳ step 3 |
+| Record over 4084 bytes | `RecordError` naming the table (the loader adds the row number, step 5) | `heap.py` ✅ |
 | Bad CSV field | error naming line and column | ⏳ step 5 |
 
