@@ -78,11 +78,44 @@ entry for the page and rewrites it. Since the value cannot change without
 compaction, the directory page is only marked dirty if it actually changed,
 so a delete never causes a needless write.
 
-### 3.4 Byte-level diagram of a real page ⏳ step 6
+### 3.4 Byte diagram ✅
 
-<!-- Required deliverable: dump one page from one of our own .db files (via
-`storage layout`) and annotate the header, slot directory, free space and
-records byte by byte. -->
+Table R(a INT, b VARCHAR(20), c INT) after loading `42,bob,7` and `43,"a, b",9`.
+Output of `python3 -m storage layout --db /tmp/db --table R --page 1 --hex`:
+
+```
+data page: page_id=1 slot_count=2 free_end=4069 free_space=4053
+  slot 0: (4083,13) live
+  slot 1: (4069,14) live
+  0000  01 00 00 00 02 00 e5 0f f3 0f 0d 00 e5 0f 0e 00
+  4064  00 00 00 00 00 2b 00 00 00 04 00 61 2c 20 62 09
+  4080  00 00 00 2a 00 00 00 03 00 62 6f 62 07 00 00 00
+```
+
+All integers are little-endian, so `e5 0f` is 0x0FE5 = 4069.
+
+| Bytes | Hex | Meaning |
+|---|---|---|
+| 0–3 | `01 00 00 00` | page_id = 1 |
+| 4–5 | `02 00` | slot_count = 2 |
+| 6–7 | `e5 0f` | free_end = 4069 |
+| 8–11 | `f3 0f 0d 00` | slot 0 = (offset 4083, length 13) |
+| 12–15 | `e5 0f 0e 00` | slot 1 = (offset 4069, length 14) |
+| 16–4068 | zeros | free space: 4069 − 16 = 4053 bytes |
+| 4069–4072 | `2b 00 00 00` | record 1, a = 43 |
+| 4073–4074 | `04 00` | record 1, b's length = 4 bytes |
+| 4075–4078 | `61 2c 20 62` | record 1, b = "a, b" |
+| 4079–4082 | `09 00 00 00` | record 1, c = 9 |
+| 4083–4086 | `2a 00 00 00` | record 0, a = 42 |
+| 4087–4088 | `03 00` | record 0, b's length = 3 bytes |
+| 4089–4091 | `62 6f 62` | record 0, b = "bob" |
+| 4092–4095 | `07 00 00 00` | record 0, c = 7 |
+
+**What it shows**
+- The slot directory grows forward from byte 8, and records grow backward from byte 4095. The free space is the gap between them.
+- Record 0 (13 bytes) was inserted first, so it sits at the very end of the page. Record 1 (14 bytes) goes just in front of it, and free_end moves from 4083 to 4069.
+- free_space = free_end − (8 + 4 × slot_count) = 4069 − 16 = 4053, which matches the directory entry on page 0 (`free_bytes=4053`).
+- The comma inside `"a, b"` is stored as plain data (`2c`). The CSV quotes are gone after loading.
 
 ## 4. Heap file [§4] ✅
 
