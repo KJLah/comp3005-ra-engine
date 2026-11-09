@@ -293,8 +293,18 @@ So our traces are:
 | 4 | ⏳ | ⏳ |
 | 5 | ⏳ | ⏳ |
 
-<!-- Fill in 2, 4, 5 at step 7 (for example a hot/cold skewed trace and a
-random uniform trace), and say why each was chosen. -->
+| # | File | Fetches | What it is, and why we chose it |
+|---|---|---|---|
+| 1 | `traces/t1_worked.txt` | 6 | 1 2 3 1 4 2 (§5.3). Proves our counters match the spec exactly: LRU 1/5/2, CLOCK 2/4/1 at B = 3. |
+| 2 | `traces/t2_hotcold.txt` | 1000 | 80% of fetches go to 20 hot pages, 20% to 180 cold ones. Real workloads look like this; a good policy keeps the hot pages. |
+| 3 | `traces/t3_scan80x10.txt` | 800 | Pages 0–79 in order, 10 times (§8). The worst case for LRU when B < 80. |
+| 4 | `traces/t4_uniform.txt` | 1000 | Every one of 200 pages equally likely. No policy can do well here; it shows the floor (hit rate ≈ B / 200). |
+| 5 | `traces/t5_hot_plus_scan.txt` | 1000 | A 10-page hot set mixed with a one-time scan of 500 pages. Shows a scan pushing useful pages out. |
+
+All five are made by `make_traces.py`. The "random" ones use a fixed LCG
+instead of Python's `random`, so the files, and every number in REPORT_M1.md,
+are the same on every machine. `tests/test_m1_traces.py` pins the first
+values so we notice if they ever change.
 
 ## 9. Errors [§9] ✅ partly
 
