@@ -41,7 +41,7 @@ comment     = "//" { ? any character except newline ? } ;   (* discarded *)
 
 (* ---------- query mode ---------- *)
 IDENT       = letter { letter | digit } ;           (* unless it is a KEYWORD *)
-KEYWORD     = "select" | "project" | "rename"
+KEYWORD     = "select" | "project" | "rename" | "distinct"
             | "union" | "intersect" | "minus" | "times" | "join"
             | "and" | "or" | "not" ;
 CMP_OP      = "=" | "!=" | "<" | "<=" | ">" | ">=" ;
@@ -85,16 +85,16 @@ Lexical rules that the EBNF alone does not say:
 
 ### 5.1.2 Keyword rule (test case 8)
 
-The words `select project rename union intersect minus times join` are
-**hard-reserved as relation names** and **soft (non-reserved) as attribute
-names**. The words `and or not` are **hard-reserved everywhere**.
+The words `select project rename distinct union intersect minus times join`
+are **hard-reserved as relation names** and **soft (non-reserved) as
+attribute names**. The words `and or not` are **hard-reserved everywhere**.
 
 The grammar expresses this with the `name` rule, which is used wherever an
 attribute name can appear:
 
 ```ebnf
 name         = IDENT | soft_keyword ;
-soft_keyword = "select" | "project" | "rename"
+soft_keyword = "select" | "project" | "rename" | "distinct"
              | "union" | "intersect" | "minus" | "times" | "join" ;
 ```
 
@@ -124,8 +124,9 @@ product_expr   = atom           { ( "times" | "join" "[" condition "]" ) atom } 
 atom           = "select"  "[" condition "]"  "(" expr ")"
                | "project" "[" attr_list "]"  "(" expr ")"
                | "rename"  "[" IDENT "]"      "(" expr ")"
+               | "distinct" "(" expr ")"
                | "(" expr ")"
-               | IDENT ;                                   (* a relation name *)
+               | IDENT ;                                  (* a relation name *)
 
 attr_list      = attr_ref { "," attr_ref } ;              (* at least one *)
 attr_ref       = [ IDENT "." ] name ;                     (* Age  or  Emp.DID *)
@@ -134,6 +135,7 @@ attr_ref       = [ IDENT "." ] name ;                     (* Age  or  Emp.DID *)
 ### 5.1.4 Syntactic grammar — conditions
 
 ```ebnf
+condition_input = condition EOF ;
 condition      = or_cond ;
 or_cond        = and_cond { "or"  and_cond } ;
 and_cond       = not_cond { "and" not_cond } ;
@@ -166,25 +168,57 @@ These semantic checks are made after parsing, while the relation is loaded:
 * attribute names in one header are distinct (otherwise a schema error);
 * all non-empty columns hold a single type: every value is a number or every
   value is a string (otherwise a type error);
-* duplicate tuples collapse to one, because a relation is a set;
+* duplicate tuples are preserved, because loaded relations use bag
+  semantics;
 * two definitions with the same relation name are a name error.
 
 ### 5.1.6 The language this grammar generates
 
-`query` generates all finite strings built from relation names, the three
-bracketed unary operators and the five infix binary operators, with balanced
-parentheses and brackets. Each bracket holds a well-formed boolean
-combination of comparisons (for `select` and `join`), a non-empty list of
-possibly-qualified attribute names (for `project`), or a single identifier
-(for `rename`). The grammar alone cannot express some rules: that names
-exist, that schemas are union-compatible, and that comparisons are well-typed.
-Those are *static semantic* checks, made after parsing and before any tuple
-is touched.
+`query` generates finite expressions built from relation names, the three
+bracketed unary operators, `distinct(expr)`, and the five infix binary
+operators, with balanced parentheses and brackets. Each bracket contains
+a condition for `select` or `join`, a non-empty attribute list for
+`project`, or a new relation name for `rename`.
 
+Attribute references may be qualified (`Emp.DID`) or bare (`DID`).
+Qualified references must match both the relation qualifier and column
+name. Bare references must identify exactly one input column.
+
+The grammar does not establish that names exist, schemas are compatible,
+or comparisons are well-typed. Those checks occur during planning before
+execution reads tuples.
+
+### 5.1.7 Bag semantics and explicit duplicate removal
+
+Loading and projection preserve duplicate tuples. Selection and rename
+preserve the multiplicity of retained tuples. Products and joins preserve
+the multiplicity of tuple combinations.
+
+`distinct(expr)` removes duplicate tuples from its input without changing
+the schema. Equality uses the engine's existing tuple-key definition:
+numbers compare by numeric value, strings are case-sensitive, and a
+number never equals a string.
+
+The existing `union`, `intersect` and `minus` operators return distinct
+tuples. This applies even when their inputs contain duplicates. `ALL`
+variants are not part of this grammar.
+
+Duplicate tuples and duplicate column references are separate issues.
+`project[R.a](R)` may return repeated tuples, but
+`project[R.a, R.a](R)` remains a schema error.
+
+For Employees in `data/employees.ra`:
+
+- `project[Employees.DID](Employees)` returns three tuples:
+  D1, D2 and D1.
+- `distinct(project[Employees.DID](Employees))` returns two tuples:
+  D1 and D2.
+
+Tuple order is not part of the query language's semantic contract.
 ---
 
 ## 5.2 Precedence and associativity
-
+| 1 | `select[…](…)`, `project[…](…)`, `rename[…](…)`, `distinct(…)`, `( … )` | n/a (the input is always parenthesised) | `atom` |
 | Level (1 = binds tightest) | Operators | Associativity | Enforced by rule |
 |---|---|---|---|
 | 1 | `select[…](…)`, `project[…](…)`, `rename[…](…)`, `( … )` | n/a (the input is always parenthesised) | `atom` |
