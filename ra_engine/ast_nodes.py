@@ -70,11 +70,20 @@ Condition = Union[Compare, And, Or, Not]
 
 
 # ---- relational expressions ------------------------------------------------------
+
+Expr = Union[
+    RelationRef, Select, Project, Rename,
+    Times, Join, SetOp, Distinct,
+]
 @dataclass
 class RelationRef:
     name: str
     pos: Position
 
+@dataclass
+class Distinct:
+    child: "Expr"
+    pos: Position
 
 @dataclass
 class Select:
