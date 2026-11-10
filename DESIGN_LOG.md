@@ -291,3 +291,36 @@ through the buffer pool.
 - Section 8 of DESIGN_M1 still had the old table with the ⏳ rows above
   the new one. I deleted it.
 - Final run: 188 tests, OK.
+
+---
+
+## 2026-11-09: Module 1 failure recovery and scan-limit fixes
+
+**Problems found in the AI-assisted implementation:**
+- Failed page reads could leave the buffer pool's page table inconsistent.
+- Failed allocation consumed a page ID before checking frame availability.
+- Failed heap insertion left a directory page pinned.
+- Limited scans requested an extra record and could read another page.
+- The CLI collected the full scan result instead of streaming rows.
+- CSV field-count errors omitted the column, and extremely long integers
+  could raise ValueError instead of a contextual LoadError.
+
+**Fixes applied:**
+- Kept the old page mapping until the replacement page was available.
+- Obtained a frame before allocating a page ID.
+- Added finally-based cleanup for pins acquired by heap insertion.
+- Applied scan limits before requesting another record and streamed output.
+- Added column context to field-count errors and bounded integer conversion.
+
+**Why the previous tests missed these problems:**
+- They checked that exceptions occurred without checking recovery afterward.
+- Limit tests checked returned row counts without checking page reads.
+- CSV tests did not include extremely long integer strings.
+
+**Verification:**
+- Ran `python3 -m unittest discover -s tests -v`.
+- All 194 tests passed, including the six new regression tests.
+- Ran `python3 measure_m1.py`. All measurements matched REPORT_M1.md:
+  capacities were 255, 227 and 19 records per page; both policy tables
+  were unchanged; scanning 127,500 rows across 500 data pages plus one
+  directory page required 501 reads at B = 2, 8 and 64, with zero writes.
