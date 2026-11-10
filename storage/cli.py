@@ -25,6 +25,8 @@ from .errors import StorageError
 from .heap import NO_PAGE, DirectoryPage, HeapFile
 from .page import HEADER_SIZE, PAGE_SIZE, SlottedPage
 from .record import decode, parse_schema
+import sys
+from itertools import islice
 
 # The catalog is read with its own small pool, so the counters printed by
 # `scan` measure only the table's pages (see DESIGN_M1.md section 10).
@@ -66,33 +68,65 @@ def cmd_load(a) -> str:
             f"({info.num_tuples} rows, {info.num_pages} pages)")
 
 
-def cmd_scan(a) -> str:
+def cmd_scan(a) -> None:
     if a.limit is not None and a.limit < 0:
         raise StorageError("--limit must be 0 or more")
+
     if a.frames < 2:
-        raise StorageError("scan needs --frames 2 or more: one for the directory page, "
-                           "one for the data page")
+        raise StorageError(
+            "scan needs --frames 2 or more: one for the directory page, "
+            "one for the data page"
+        )
+
     info = open_catalog(a.db).get(a.table)
     pool = BufferPool(a.frames, a.policy)
-    heap = HeapFile(pool, DiskManager(os.path.join(a.db, info.file)), info.name)
-    rows = []
+    heap = HeapFile(
+        pool,
+        DiskManager(os.path.join(a.db, info.file)),
+        info.name,
+    )
+
     it = heap.scan()
-    try:
-        for _, rec in it:
-            if a.limit is not None and len(rows) >= a.limit:
-                break
-            rows.append(list(decode(info.columns, rec)))
-    finally:
-        it.close()                                # unpins if we stopped early
+    selected = it if a.limit is None else islice(it, a.limit)
+    count = 0
+
     if a.json:
-        return json.dumps({"table": info.name,
-                           "schema": [c.to_json() for c in info.columns],
-                           "rows": rows,
-                           "stats": pool.stats()})
-    out = [" | ".join(c.name for c in info.columns)]
-    out += [" | ".join(str(v) for v in r) for r in rows]
-    out.append(f"({len(rows)} rows)  " + "  ".join(f"{k}={v}" for k, v in pool.stats().items()))
-    return "\n".join(out)
+        schema = [c.to_json() for c in info.columns]
+        sys.stdout.write(
+            '{"table":' + json.dumps(info.name)
+            + ',"schema":' + json.dumps(schema)
+            + ',"rows":['
+        )
+    else:
+        print(" | ".join(c.name for c in info.columns))
+
+    try:
+        for _, rec in selected:
+            row = decode(info.columns, rec)
+
+            if a.json:
+                if count:
+                    sys.stdout.write(",")
+                sys.stdout.write(json.dumps(list(row)))
+            else:
+                print(" | ".join(str(value) for value in row))
+
+            count += 1
+    finally:
+        it.close()
+
+    if a.json:
+        sys.stdout.write(
+            '],"stats":' + json.dumps(pool.stats()) + '}\n'
+        )
+    else:
+        print(
+            f"({count} rows)  "
+            + "  ".join(
+                f"{key}={value}"
+                for key, value in pool.stats().items()
+            )
+        )
 
 
 def cmd_layout(a) -> str:
@@ -219,7 +253,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        print(args.func(args))
+        result = args.func(args)
+        if result is not None:
+            print(result)
         return 0
     except StorageError as e:
         print(f"Error: {e}")
