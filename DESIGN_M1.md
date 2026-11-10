@@ -329,7 +329,7 @@ values so we notice if they ever change.
 
 **Decisions and why**
 
-1. **`python3 -m storage` instead of a `storage` script.** The spec writes `storage scan ...`. A `storage.py` file at the root would clash with the `storage/` package, so `storage/__main__.py` is the entry point. Nothing needs installing.
+1. **Command entry point.** Installing from the repository root with `python3 -m pip install -e .` provides the `storage` command through the console entry point in pyproject.toml.`python3 -m storage` remains available without installation. Both invoke the same CLI implementation.
 2. **The catalog gets its own small pool (4 frames).** `scan --frames B` builds a fresh pool for the table only. So its counters count only the table's pages, and the same command always prints the same numbers. A scan of a 1 + 9 page table reads 10 pages at B = 2, 8 and 64.
 3. **`scan` needs B ≥ 2.** A scan pins one directory page and one data page at the same time (section 4). B = 1 gives a clear error instead of "no unpinned frame".
 4. **Streaming scans and limits.** The scan command streams rows directly to text or JSON output rather than collecting the whole table. The limit is applied before requesting another record, so stopping at a page boundary does not read the next data page. The scan
