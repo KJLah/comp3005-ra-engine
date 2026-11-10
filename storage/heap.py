@@ -99,44 +99,89 @@ class HeapFile:
     # ---- insert (section 4.1) ------------------------------------------------
     def insert(self, record: bytes) -> Rid:
         n = len(record)
-        if n > MAX_RECORD:
-            raise RecordError(f"table {self.name}: record of {n} bytes is longer than "
-                              f"the {MAX_RECORD}-byte maximum (4088 free bytes minus "
-                              f"a {SLOT_SIZE}-byte slot)")
-        need = n + SLOT_SIZE
-        dir_id = 0
-        while True:
-            dir_data = self.pool.fetch_page(self.disk, dir_id)
-            d = DirectoryPage(dir_data)
-            for i in range(d.entry_count):                 # first fit
-                data_id, free = d.entry(i)
-                if free >= need:
-                    page = SlottedPage(self.pool.fetch_page(self.disk, data_id))
-                    slot = page.insert(record)
-                    d.set_free(i, page.free_space())
-                    self.pool.unpin_page(self.disk, data_id, True)
-                    self.pool.unpin_page(self.disk, dir_id, True)
-                    return (data_id, slot)
-            if d.next_dir == NO_PAGE:
-                break                                       # keep the last directory pinned
-            nxt = d.next_dir
-            self.pool.unpin_page(self.disk, dir_id, False)
-            dir_id = nxt
 
-        # No page has room: add a data page, and a directory page if this one is full.
-        if d.entry_count >= DIR_CAPACITY:
-            new_dir_id, new_dir_data = self.pool.new_page(self.disk)
-            DirectoryPage.init(new_dir_data, new_dir_id)
-            d.next_dir = new_dir_id
-            self.pool.unpin_page(self.disk, dir_id, True)
-            dir_id, d = new_dir_id, DirectoryPage(new_dir_data)
-        data_id, data = self.pool.new_page(self.disk)
-        page = SlottedPage.init(data, data_id)
-        slot = page.insert(record)
-        d.add_entry(data_id, page.free_space())
-        self.pool.unpin_page(self.disk, data_id, True)
-        self.pool.unpin_page(self.disk, dir_id, True)
-        return (data_id, slot)
+        if n > MAX_RECORD:
+            raise RecordError(
+                f"table {self.name}: record of {n} bytes is longer than "
+                f"the {MAX_RECORD}-byte maximum "
+                f"(4088 free bytes minus a {SLOT_SIZE}-byte slot)"
+            )
+
+        need = n + SLOT_SIZE
+        held = {}  # page_id -> whether this insertion changed the page
+
+        def fetch(pid):
+            data = self.pool.fetch_page(self.disk, pid)
+            held[pid] = False
+            return data
+
+        def allocate():
+            pid, data = self.pool.new_page(self.disk)
+            held[pid] = True
+            return pid, data
+
+        def release(pid):
+            self.pool.unpin_page(self.disk, pid, held[pid])
+            del held[pid]
+
+        try:
+            dir_id = 0
+
+            while True:
+                d = DirectoryPage(fetch(dir_id))
+
+                for i in range(d.entry_count):
+                    data_id, free = d.entry(i)
+
+                    if free >= need:
+                        page = SlottedPage(fetch(data_id))
+                        slot = page.insert(record)
+
+                        if slot is None:
+                            raise PageError(
+                                "directory free-space entry is inconsistent"
+                            )
+
+                        held[data_id] = True
+                        d.set_free(i, page.free_space())
+                        held[dir_id] = True
+                        return data_id, slot
+
+                if d.next_dir == NO_PAGE:
+                    break
+
+                nxt = d.next_dir
+                release(dir_id)
+                dir_id = nxt
+
+            # The last directory page is still pinned here.
+            if d.entry_count >= DIR_CAPACITY:
+                new_dir_id, new_dir_data = allocate()
+                DirectoryPage.init(new_dir_data, new_dir_id)
+
+                d.next_dir = new_dir_id
+                held[dir_id] = True
+                release(dir_id)
+
+                dir_id = new_dir_id
+                d = DirectoryPage(new_dir_data)
+
+            data_id, data = allocate()
+            page = SlottedPage.init(data, data_id)
+            slot = page.insert(record)
+
+            if slot is None:
+                raise PageError(
+                    "record did not fit on an empty data page"
+                )
+
+            d.add_entry(data_id, page.free_space())
+            held[dir_id] = True
+            return data_id, slot
+
+        finally:
+            for pid in reversed(list(held)):
+                release(pid)
 
     # ---- get / delete --------------------------------------------------------
     def get(self, rid: Rid) -> bytes:
