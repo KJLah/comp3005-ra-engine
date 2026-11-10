@@ -180,6 +180,20 @@ Choices the specification leaves open:
    This is also what reproduces 5.3: after loading 1, 2, 3 the hand is back
    at frame 0, so fetching 4 clears 1, 2, 3 and evicts 1.
 
+### Failure recovery
+
+A replacement frame retains its old page-table entry until the incoming
+page has been read successfully. A failed read therefore leaves the old
+page accessible. If the selected frame was empty, failure returns it to
+the free-frame list.
+
+new_page() obtains an available frame before allocating a page ID.
+Failure because all frames are pinned therefore consumes no page ID.
+
+Heap insertion tracks the pins it acquires and releases them in a
+finally block. It does not release pins held by its caller. This cleanup
+does not provide transactional rollback for arbitrary disk failures.
+
 ## 6. Catalog [§6] ✅
 
 **Where it lives.** `catalog.db` is itself a heap file with exactly the §4
