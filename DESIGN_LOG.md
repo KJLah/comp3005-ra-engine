@@ -324,3 +324,6 @@ through the buffer pool.
   capacities were 255, 227 and 19 records per page; both policy tables
   were unchanged; scanning 127,500 rows across 500 data pages plus one
   directory page required 501 reads at B = 2, 8 and 64, with zero writes.
+- Installed the package with `python3 -m pip install -e .`.
+- Verified that `storage --help` lists create-table, load, scan,
+  layout and trace.
