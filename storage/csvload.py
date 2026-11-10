@@ -70,15 +70,35 @@ def split_line(line: str, line_no: int) -> List[str]:
 def parse_int(text: str):
     t = text.strip(" \t")
     body = t[1:] if t[:1] in ("-", "+") else t
+
     if not body or not all("0" <= ch <= "9" for ch in body):
         return None
-    v = int(t)
+
+    # Normalize before int() so a huge input cannot trigger Python's
+    # integer-string conversion limit. Leading zeros remain valid.
+    digits = body.lstrip("0") or "0"
+
+    if len(digits) > 10:
+        return None
+
+    v = int(("-" if t.startswith("-") else "") + digits)
+
     return v if -2**31 <= v < 2**31 else None
 
 
 def convert(fields: Sequence[str], columns: Sequence[Column], line_no: int) -> Tuple[Value, ...]:
     if len(fields) != len(columns):
-        raise LoadError(f"line {line_no}: expected {len(columns)} fields, found {len(fields)}")
+        if len(fields) < len(columns):
+            where = f"column '{columns[len(fields)].name}'"
+        else:
+            where = (
+                f"column {len(columns) + 1} (unexpected field)"
+            )
+
+        raise LoadError(
+            f"line {line_no}, {where}: expected {len(columns)} fields, "
+            f"found {len(fields)}"
+        )
     values: List[Value] = []
     for col, raw in zip(columns, fields):
         if col.type == INT:
