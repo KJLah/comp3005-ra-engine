@@ -280,7 +280,8 @@ column"):
 |---|---|
 | INT does not parse | `line 3, column 'c': 'x7' is not a 32-bit INT` |
 | VARCHAR too long | `line 1, column 'b': value is 11 bytes, longer than VARCHAR(10)` |
-| wrong field count | `line 1: expected 3 fields, found 2` |
+| missing field | `line 1, column 'c': expected 3 fields, found 2` |
+| extra field | `line 1, column 4 (unexpected field): expected 3 fields, found 4` |
 | unterminated quote | `line 5, column 2: unterminated quoted field` |
 | record over 4084 bytes | `table W, line 1: record is 4112 bytes, longer than the 4084-byte maximum` |
 
@@ -331,7 +332,8 @@ values so we notice if they ever change.
 1. **`python3 -m storage` instead of a `storage` script.** The spec writes `storage scan ...`. A `storage.py` file at the root would clash with the `storage/` package, so `storage/__main__.py` is the entry point. Nothing needs installing.
 2. **The catalog gets its own small pool (4 frames).** `scan --frames B` builds a fresh pool for the table only. So its counters count only the table's pages, and the same command always prints the same numbers. A scan of a 1 + 9 page table reads 10 pages at B = 2, 8 and 64.
 3. **`scan` needs B ≥ 2.** A scan pins one directory page and one data page at the same time (section 4). B = 1 gives a clear error instead of "no unpinned frame".
-4. **`--limit` closes the scan generator.** Its `finally` unpins the open pages, so stopping early leaves nothing pinned.
+4. **Streaming scans and limits.** The scan command streams rows directly to text or JSON output rather than collecting the whole table. The limit is applied before requesting another record, so stopping at a page boundary does not read the next data page. The scan
+generator is closed in a `finally` block, which unpins any open pages when the scan finishes or stops early.
 5. **Errors are one line.** Every `StorageError` prints `Error: ...` and exits 1. Anything else prints `Internal error: ...` and exits 2. Neither shows a traceback.
 6. **`layout` reads the page through a 1-frame pool.** It works out the page type itself: page 0 and every page on the `next_dir` chain are directory pages, the rest are slotted pages. `--hex` adds the raw bytes with decimal offsets (all-zero lines are skipped), which is what section 3.4 shows. `--table catalog` shows `catalog.db`.
 7. **`trace` ignores `--db`.** It runs on an in-memory disk (section 8), but it accepts `--db` so the spec's command line works as written.
