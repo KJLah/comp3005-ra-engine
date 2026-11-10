@@ -118,10 +118,12 @@ class BufferPool:
             raise BufferPoolError("no unpinned frame available")
         if frame.dirty:
             self._write(frame)
-        del self.page_table[frame.key]
         return frame, True
 
     def _install(self, frame: Frame, disk, page_id: int) -> None:
+        if frame.key is not None:
+            del self.page_table[frame.key]
+
         frame.key = (id(disk), page_id)
         frame.disk = disk
         frame.page_id = page_id
@@ -132,19 +134,38 @@ class BufferPool:
     # ---- section 5 interface -------------------------------------------------
     def fetch_page(self, disk, page_id: int) -> bytearray:
         key = (id(disk), page_id)
+
         if key in self.page_table:
             frame = self.frames[self.page_table[key]]
             frame.pin_count += 1
             self.hits += 1
             self.policy.on_access(frame, loaded=False)
             return frame.data
+
         frame, evicted = self._take_frame()
-        frame.data[:] = disk.read_page(page_id)
-        self.reads += 1
+
+        try:
+            self.reads += 1
+            incoming = disk.read_page(page_id)
+
+            if len(incoming) != PAGE_SIZE:
+                raise BufferPoolError(
+                    f"page {page_id}: expected {PAGE_SIZE} bytes"
+                )
+        except Exception:
+            # An unused frame must become available again.
+            # A victim frame still holds its old page and mapping.
+            if frame.key is None:
+                self.free.insert(0, frame.index)
+            raise
+
+        frame.data[:] = incoming
         self._install(frame, disk, page_id)
         self.misses += 1
+
         if evicted:
             self.evictions += 1
+
         self.policy.on_access(frame, loaded=True)
         return frame.data
 
@@ -160,12 +181,21 @@ class BufferPool:
         frame.pin_count -= 1
 
     def new_page(self, disk) -> Tuple[int, bytearray]:
-        """Allocate a page on `disk` and return (page_id, frame data): zero
-        filled, pinned, dirty. Not a fetch, so it is neither a hit nor a miss
-        and does no READ; replacing a page for it is not counted as an
-        eviction (the eviction rule only counts misses). Documented in DESIGN_M1."""
-        page_id = disk.allocate_page()
+        """Return a zero-filled, pinned, dirty page.
+
+        Allocation is not a fetch: it counts as no hit, miss or read.
+        Its write is counted when the page is flushed or evicted.
+        """
+        # Find a usable frame before consuming a page ID.
         frame, _ = self._take_frame()
+
+        try:
+            page_id = disk.allocate_page()
+        except Exception:
+            if frame.key is None:
+                self.free.insert(0, frame.index)
+            raise
+
         frame.data[:] = bytes(PAGE_SIZE)
         self._install(frame, disk, page_id)
         frame.dirty = True
