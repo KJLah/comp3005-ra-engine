@@ -144,6 +144,11 @@ always the first directory page.
   visited once in order. Tested at B = 2, 8 and 64 (11 reads for 10 data
   pages in every case).
 - **get(rid)** fetches only the data page (one page access).
+- **Deletion validation.** Before modifying a page, delete(rid) locates
+  its data-page entry in the directory chain. Directory pages are not
+  eligible for record deletion. Negative, missing and dead slots raise
+  errors. Failed deletion does not newly mark an unchanged page dirty,
+  and acquired pins are released.
 
 ## 5. Buffer pool [§5] ✅
 
