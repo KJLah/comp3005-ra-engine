@@ -47,6 +47,12 @@ class LRUPolicy:
         self.order[frame.index] = None
         self.order.move_to_end(frame.index)
 
+    def on_discard(self, frame: Frame) -> None:
+        self.order.pop(frame.index, None)
+
+    def on_discard(self, frame: Frame) -> None:
+        self.ref[frame.index] = 0    
+
     def choose_victim(self) -> Optional[Frame]:
         for i in self.order:
             if self.frames[i].pin_count == 0:
@@ -102,6 +108,9 @@ class BufferPool:
         self.page_table: Dict[Key, int] = {}
         self.free = list(range(num_frames))     # empty frames, used lowest first
         self.hits = self.misses = self.evictions = self.reads = self.writes = 0
+        # Module 2: how many frames are pinned now, and the most ever pinned at once.
+        self.pinned = 0
+        self.peak_pinned = 0
 
     # ---- helpers ------------------------------------------------------------
     def _write(self, frame: Frame) -> None:
@@ -127,9 +136,16 @@ class BufferPool:
         frame.key = (id(disk), page_id)
         frame.disk = disk
         frame.page_id = page_id
-        frame.pin_count = 1
+        frame.pin_count = 0
+        self._pin(frame)
         frame.dirty = False
         self.page_table[frame.key] = frame.index
+
+    def _pin(self, frame: Frame) -> None:
+        if frame.pin_count == 0:
+            self.pinned += 1
+            self.peak_pinned = max(self.peak_pinned, self.pinned)
+        frame.pin_count += 1
 
     # ---- section 5 interface -------------------------------------------------
     def fetch_page(self, disk, page_id: int) -> bytearray:
@@ -137,7 +153,7 @@ class BufferPool:
 
         if key in self.page_table:
             frame = self.frames[self.page_table[key]]
-            frame.pin_count += 1
+            self._pin(frame)
             self.hits += 1
             self.policy.on_access(frame, loaded=False)
             return frame.data
@@ -179,6 +195,8 @@ class BufferPool:
                                   f"pin count is already 0")
         frame.dirty = frame.dirty or is_dirty
         frame.pin_count -= 1
+        if frame.pin_count == 0:
+            self.pinned -= 1
 
     def new_page(self, disk) -> Tuple[int, bytearray]:
         """Return a zero-filled, pinned, dirty page.
@@ -201,6 +219,40 @@ class BufferPool:
         frame.dirty = True
         self.policy.on_access(frame, loaded=True)
         return page_id, frame.data
+
+    # ---- Module 2 additions (temporary files) ---------------------------------
+    def flush_page(self, disk, page_id: int) -> None:
+        """Write one resident page now if it is dirty (one WRITE)."""
+        key = (id(disk), page_id)
+        if key not in self.page_table:
+            raise BufferPoolError(f"flush of page {page_id} of {disk.path}: not resident")
+        frame = self.frames[self.page_table[key]]
+        if frame.dirty:
+            self._write(frame)
+
+    def discard_page(self, disk, page_id: int) -> None:
+        """Drop an unpinned page from the pool without writing it. Its frame
+        becomes empty again. Does nothing if the page is not resident."""
+        key = (id(disk), page_id)
+        if key not in self.page_table:
+            return
+        frame = self.frames[self.page_table[key]]
+        if frame.pin_count:
+            raise BufferPoolError(f"discard of page {page_id} of {disk.path}: "
+                                  f"still pinned")
+        del self.page_table[key]
+        frame.key = frame.disk = frame.page_id = None
+        frame.dirty = False
+        self.policy.on_discard(frame)
+        self.free.append(frame.index)
+        self.free.sort()
+
+    def discard(self, disk) -> None:
+        """Drop every page of one file (before the file is deleted), so a later
+        eviction can never write to it."""
+        for frame in self.frames:
+            if frame.key is not None and frame.disk is disk:
+                self.discard_page(disk, frame.page_id)
 
     def flush_all(self) -> None:
         for frame in self.frames:

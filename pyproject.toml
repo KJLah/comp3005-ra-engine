@@ -9,6 +9,7 @@ requires-python = ">=3.8"
 
 [project.scripts]
 storage = "storage.cli:main"
+exec = "execution.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["ra_engine*", "storage*"]
+include = ["ra_engine*", "storage*", "execution*"]
