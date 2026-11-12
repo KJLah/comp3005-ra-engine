@@ -49,10 +49,7 @@ class LRUPolicy:
 
     def on_discard(self, frame: Frame) -> None:
         self.order.pop(frame.index, None)
-
-    def on_discard(self, frame: Frame) -> None:
-        self.ref[frame.index] = 0    
-
+  
     def choose_victim(self) -> Optional[Frame]:
         for i in self.order:
             if self.frames[i].pin_count == 0:
@@ -73,6 +70,8 @@ class ClockPolicy:
         if loaded:
             # "A newly loaded page gets reference bit 1 and the hand advances past it."
             self.hand = (frame.index + 1) % len(self.frames)
+    def on_discard(self, frame: Frame) -> None:
+        self.ref[frame.index] = 0
 
     def choose_victim(self) -> Optional[Frame]:
         b = len(self.frames)
