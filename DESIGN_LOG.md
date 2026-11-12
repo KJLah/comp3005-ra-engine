@@ -397,3 +397,25 @@ through the buffer pool.
 - Installed the package with `python3 -m pip install -e .`.
 - Verified that `storage --help` lists create-table, load, scan,
   layout and trace.
+
+  ---
+
+## 2026-11-11: deletion validation and failed-delete cleanup
+
+**Problems found:**
+- Failed deletion marked an unchanged page dirty, causing an extra write.
+- Later directory pages passed the page-number range check and could
+  be modified as though they were record pages.
+- Negative slot numbers were accepted.
+
+**Fixes:**
+- Mark the data page dirty only after deletion succeeds.
+- Locate the target's data-page directory entry before modifying it.
+- Reject negative slot numbers.
+- Add regression tests checking unchanged data, write counts and pin cleanup.
+
+**Verification:**
+- Full-suite command: python3 -m unittest discover -s tests -v
+- Actual result: [paste your observed result]
+- Measurement command: python3 measure_m1.py
+- Actual result: [state whether it matches REPORT_M1.md]
