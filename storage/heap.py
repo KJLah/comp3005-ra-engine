@@ -196,29 +196,61 @@ class HeapFile:
     def delete(self, rid: Rid) -> None:
         page_id, slot = rid
         self._check_data_page(page_id)
-        page = SlottedPage(self.pool.fetch_page(self.disk, page_id))
-        try:
-            page.delete(slot)
-            free = page.free_space()
-        finally:
-            self.pool.unpin_page(self.disk, page_id, True)
-        # Update the directory entry. Without compaction a delete frees no
-        # usable space (3.2), so the value is unchanged and the directory page
-        # is only marked dirty if it actually changes. See DESIGN_M1.md.
+
+        if slot < 0:
+            raise PageError(
+                f"rid {rid}: slot number must be nonnegative"
+            )
+
+        # Locate a real data-page entry before modifying the page.
         dir_id = 0
+
         while dir_id != NO_PAGE:
-            d = DirectoryPage(self.pool.fetch_page(self.disk, dir_id))
-            for i in range(d.entry_count):
-                data_id, old = d.entry(i)
-                if data_id == page_id:
-                    changed = old != free
-                    if changed:
+            d = DirectoryPage(
+                self.pool.fetch_page(self.disk, dir_id)
+            )
+            dir_dirty = False
+
+            try:
+                for i in range(d.entry_count):
+                    data_id, old_free = d.entry(i)
+
+                    if data_id != page_id:
+                        continue
+
+                    page = SlottedPage(
+                        self.pool.fetch_page(self.disk, page_id)
+                    )
+                    deleted = False
+
+                    try:
+                        page.delete(slot)
+                        deleted = True
+                        free = page.free_space()
+                    finally:
+                        self.pool.unpin_page(
+                            self.disk, page_id, deleted
+                        )
+
+                    if old_free != free:
                         d.set_free(i, free)
-                    self.pool.unpin_page(self.disk, dir_id, changed)
+                        dir_dirty = True
+
                     return
-            nxt = d.next_dir
-            self.pool.unpin_page(self.disk, dir_id, False)
+
+                nxt = d.next_dir
+
+            finally:
+                self.pool.unpin_page(
+                    self.disk, dir_id, dir_dirty
+                )
+
             dir_id = nxt
+
+        raise PageError(
+            f"rid {rid}: page is not a listed data page "
+            f"of table {self.name}"
+        )
 
     def _check_data_page(self, page_id: int) -> None:
         if not 0 < page_id < self.disk.num_pages:

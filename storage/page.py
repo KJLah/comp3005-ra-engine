@@ -90,7 +90,7 @@ class SlottedPage:
         return slot_no
 
     def get(self, slot_no: int) -> bytes:
-        if slot_no >= self.slot_count:
+        if not 0 <= slot_no < self.slot_count:
             raise PageError(f"rid ({self.page_id}, {slot_no}): slot does not exist "
                             f"(page has {self.slot_count} slots)")
         offset, length = self.slot(slot_no)

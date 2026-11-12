@@ -85,9 +85,9 @@ Lexical rules that the EBNF alone does not say:
 
 ### 5.1.2 Keyword rule (test case 8)
 
-The words `select project rename distinct union intersect minus times join`
-are **hard-reserved as relation names** and **soft (non-reserved) as
-attribute names**. The words `and or not` are **hard-reserved everywhere**.
+The words `select project rename distinct union intersect minus times join` are
+**hard-reserved as relation names** and **soft (non-reserved) as attribute
+names**. The words `and or not` are **hard-reserved everywhere**.
 
 The grammar expresses this with the `name` rule, which is used wherever an
 attribute name can appear:
@@ -168,8 +168,7 @@ These semantic checks are made after parsing, while the relation is loaded:
 * attribute names in one header are distinct (otherwise a schema error);
 * all non-empty columns hold a single type: every value is a number or every
   value is a string (otherwise a type error);
-* duplicate tuples are preserved, because loaded relations use bag
-  semantics;
+* duplicate tuples are preserved, because loaded relations use bag semantics;
 * two definitions with the same relation name are a name error.
 
 ### 5.1.6 The language this grammar generates

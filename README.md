@@ -38,7 +38,7 @@ python3 -m unittest discover -s tests -v
 python3 measure_m1.py
 ```
 
-The verified suite contains 194 tests. The measurements cover record
+The verified suite contains 197 tests. The measurements cover record
 capacity, replacement-policy hit rates, and scan cost.
 
 ### Module 1 documentation
@@ -99,7 +99,7 @@ python3 bench.py --max 8000 # quick run
 | `ra_engine/errors.py` | The five error categories, rendered with a position |
 | `gen_data.py` | Data generator for R(a, b) and S(b, c) |
 | `bench.py` | Runs the experiment and writes `results/` |
-| `tests/` | Bonus 1 cases, lecture examples, layer checks, and library integration tests |
+| `tests/` | Bonus 1 cases, lecture examples, library integration tests, and Module 1 storage tests |
 | `data/employees.ra` | Example relations (Employees from section 4.1, Emp, Dept) |
 
 ## Pipeline
@@ -117,11 +117,10 @@ user wrote it. There is no optimisation or rewriting.
 
 ## What is supported
 
-* **Relation files**: `Name(a, b, ...) = { ... }`, one tuple per line.
-  Values can be bare (`John`, `D1`, `32`) or quoted (`'O''Brien, Pat'`).
-  `//` comments and blank lines are allowed. Duplicate tuples are
-  preserved. A number column must hold only numbers and a string column
-  only strings.
+* **Relation files**: `Name(a, b, ...) = { ... }`, one tuple per line. Values
+  can be bare (`John`, `D1`, `32`) or quoted (`'O''Brien, Pat'`). `//`
+  comments and blank lines are allowed. Duplicate tuples are preserved. A number
+  column must hold only numbers and a string column only strings.
 * **Unary operators**: `select[cond](e)`, `project[a, b, ...](e)`,
   `rename[N](e)`, and `distinct(e)`.
 * **Binary operators**: `union`, `intersect`, `minus`, `times`, `join[cond]`.
