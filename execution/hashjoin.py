@@ -179,4 +179,3 @@ class HashJoin(Operator):
         it = getattr(self, "it", None)
         if it is not None:
             it.close()
-            
