@@ -41,7 +41,7 @@ comment     = "//" { ? any character except newline ? } ;   (* discarded *)
 
 (* ---------- query mode ---------- *)
 IDENT       = letter { letter | digit } ;           (* unless it is a KEYWORD *)
-KEYWORD     = "select" | "project" | "rename"
+KEYWORD     = "select" | "project" | "rename" | "distinct"
             | "union" | "intersect" | "minus" | "times" | "join"
             | "and" | "or" | "not" ;
 CMP_OP      = "=" | "!=" | "<" | "<=" | ">" | ">=" ;
@@ -85,7 +85,7 @@ Lexical rules that the EBNF alone does not say:
 
 ### 5.1.2 Keyword rule (test case 8)
 
-The words `select project rename union intersect minus times join` are
+The words `select project rename distinct union intersect minus times join` are
 **hard-reserved as relation names** and **soft (non-reserved) as attribute
 names**. The words `and or not` are **hard-reserved everywhere**.
 
@@ -94,7 +94,7 @@ attribute name can appear:
 
 ```ebnf
 name         = IDENT | soft_keyword ;
-soft_keyword = "select" | "project" | "rename"
+soft_keyword = "select" | "project" | "rename" | "distinct"
              | "union" | "intersect" | "minus" | "times" | "join" ;
 ```
 
@@ -124,6 +124,7 @@ product_expr   = atom           { ( "times" | "join" "[" condition "]" ) atom } 
 atom           = "select"  "[" condition "]"  "(" expr ")"
                | "project" "[" attr_list "]"  "(" expr ")"
                | "rename"  "[" IDENT "]"      "(" expr ")"
+               | "distinct" "(" expr ")"
                | "(" expr ")"
                | IDENT ;                                   (* a relation name *)
 
@@ -166,7 +167,7 @@ These semantic checks are made after parsing, while the relation is loaded:
 * attribute names in one header are distinct (otherwise a schema error);
 * all non-empty columns hold a single type: every value is a number or every
   value is a string (otherwise a type error);
-* duplicate tuples collapse to one, because a relation is a set;
+* duplicate tuples are preserved, because loaded relations use bag semantics;
 * two definitions with the same relation name are a name error.
 
 ### 5.1.6 The language this grammar generates
