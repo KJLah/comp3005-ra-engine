@@ -321,7 +321,7 @@ values so we notice if they ever change.
 | Unpin at pin count 0 | `BufferPoolError` | `buffer.py` ✅ |
 | Reading a dead slot | `PageError` naming the rid | `page.py` ✅ |
 | Record over 4084 bytes | `RecordError` naming the table (the loader adds the line number) | `heap.py` ✅ |
-| Bad CSV field | LoadErrornaming the line and column |csvload.py ✅ |
+| Bad CSV field | `LoadError` naming the line and column | `csvload.py` ✅ |
 
 ## 10. Command line ✅
 
