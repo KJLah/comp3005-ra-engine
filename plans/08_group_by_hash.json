@@ -1,0 +1,1 @@
+{"op": "group_by", "mode": "hash", "keys": ["R.b"], "aggregates": [["count", "*"], ["sum", "R.a"], ["min", "R.c"]], "child": {"op": "seqscan", "table": "R"}}

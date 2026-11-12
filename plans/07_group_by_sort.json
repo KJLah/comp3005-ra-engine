@@ -1,0 +1,1 @@
+{"op": "group_by", "mode": "sort", "keys": ["R.b"], "aggregates": [["count", "*"], ["avg", "R.a"], ["max", "R.c"]], "child": {"op": "seqscan", "table": "R"}}
