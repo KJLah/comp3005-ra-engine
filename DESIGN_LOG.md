@@ -182,3 +182,148 @@ wrong, slow or incomplete: what the problem was and how I found it.
 - Tuple sources are independent of in-memory lists, but execution still
   materializes inputs and intermediate results. Module 2's iterator
   interface is future work.
+
+**AI was wrong / slow / incomplete:**
+- **It overclaimed.** It said moving `plan()` into `planner.py` made the
+  operators independent of the parse tree. They still receive condition
+  nodes from `ast_nodes` through `conditions.py`. `test_layers.py` only
+  checks direct imports, so it passed anyway.
+- **A key step was only described in words.** The fixes file gave
+  `qualify()` as code but described "rename plan to _plan and wrap it" in
+  one sentence. I added `qualify()` but nothing called it, so bare names
+  still reached the plan and the JSON.
+- **Its own code had a bug.** Its first `qualify()` resolved names before
+  checking for duplicate columns, so `Emp join[Emp.MgrID=Emp.EID] Emp`
+  would have raised a Name error ("ambiguous") instead of the Schema error
+  that test 20b expects. I found this when re-checking the code
+  before handing over the final `planner.py`. The fix runs
+  `check_no_collisions` before qualifying the join condition.
+
+  ---
+
+## 2026-11-09: Module 1 step 1, records and the slotted page
+
+**Goal:** implement record encoding (section 2) and the slotted page
+(section 3), and reproduce the 3.2 worked example exactly.
+
+**Decisions:**
+- New package `storage/` next to `ra_engine/`: `errors.py`, `record.py`,
+  `page.py`. `SlottedPage` works directly on a 4096-byte bytearray, so a
+  buffer-pool frame can be used as a page without copying.
+- **Largest record is 4084 bytes, not 4088.** Section 3.3 says a record
+  longer than 4088 bytes cannot be stored, but every insert also needs a
+  4-byte slot. On an empty page, free space is 4088, so the largest record
+  that fits is 4088 − 4 = 4084 bytes. Records of 4085–4088 bytes pass the
+  handout's rule but still do not fit. We reject anything over 4084 and
+  explain this in DESIGN_M1.md. `test_largest_record_fits_and_one_more_byte_does_not`
+  checks both sides.
+
+**AI was wrong / slow / incomplete:**
+- **It misjudged a field size.** The AI's first version of `page.py`
+  claimed that `free_end`, a uint16, could not hold 4096 (the value on an
+  empty page), and stored 0 as a stand-in. That was wrong: a uint16 holds
+  values up to 65535. Left in, it would have made our page bytes differ
+  from the handout's format and from the grader's files. The
+  mistake was found before handing over the code and removed the workaround.
+  `test_empty_page_header_bytes` now checks that an empty page starts with
+  `01 00 00 00 00 00 00 10` (page_id 1, slot_count 0, free_end 4096).
+
+**What I tried / what broke:**
+- After adding step 2 the suite still showed 120 tests. `test_m1_buffer.py`
+  had not been created in `tests/`, so there were no new tests to find.
+- Once the test file was added, it failed to import:
+  `ImportError: cannot import name 'BufferPool' from 'storage.buffer'`.
+  I had pasted the disk manager code into `storage/buffer.py` by mistake
+  and only changed its first line. Replacing the whole file with the
+  buffer pool code fixed it.
+- VS Code also reported "ENOSPC: no space left on device" when saving.
+  My Mac's disk was full, so some edits were not being saved. I freed
+  space and saved again.
+- I had also saved DESIGN_M1.md inside `tests/` instead of the repo root,
+  and moved it.
+- Final run: 134 tests, OK.
+
+--
+
+## 2026-11-09: Module 1 step 8, querying stored tables with the engine
+
+**Goal:** let the relational algebra engine from Bonus 1 query tables
+stored by Module 1, so `project[b](select[a > 1](R))` reads `R.db`
+through the buffer pool.
+
+**Decisions:**
+- New file `storage/source.py` with `HeapSource`, which implements the
+  engine's `TupleSource` (name, attributes, `scan()`). `sources(catalog)`
+  returns every table in the catalog as the dict that `plan()` expects.
+- INT becomes the engine's number type and VARCHAR becomes string. The
+  qualifier is the table name, so `R.a` works the same as for a relation
+  loaded from a `.ra` file.
+- `storage` imports `ra_engine`, never the other way round, so the engine
+  still works without any storage.
+- Every call to `scan()` starts a new heap scan instead of handing out
+  one iterator that gets used up.
+
+**AI was wrong / slow / incomplete:**
+- **It gave the wrong reason for a decision.** In DESIGN_M1 section 11,
+  the AI explained the "new heap scan on every `scan()`" decision by
+  saying that a join reads its right side again for every row of the
+  left side (a nested-loop join that re-reads its inner input). That is
+  not how our engine works. I checked `JoinOp.execute()` in
+  `ra_engine/operators.py`: it calls `self.left.execute()` and
+  `self.right.execute()` once each, keeps both results in lists, and
+  joins the lists in memory. Each table is scanned once per join.
+- **How we fixed it:** the code was correct, so only the explanation
+  changed. Decision 4 in section 11 now gives the real reasons:
+  (1) the same table can appear twice in one query, for example a
+  self-join with rename, which needs two separate scans of the same
+  file, and (2) the same plan can be evaluated more than once and must
+  return the same rows. If `scan()` returned a single iterator, the
+  second scan would come back empty.
+  `test_scan_returns_rows_and_can_run_twice` checks this.
+- **Lesson:** a design reason has to match our own code, not how
+  databases usually work. I now check claims like this against the
+  source file before pasting them into the design document.
+
+**What I tried / what broke:**
+- At first my step 7 push was missing the 5 files in `traces/`. They were
+  created by `make_traces.py` but not committed. I committed them with
+  this step.
+- Section 8 of DESIGN_M1 still had the old table with the ⏳ rows above
+  the new one. I deleted it.
+- Final run: 188 tests, OK.
+
+---
+
+## 2026-11-09: Module 1 failure recovery and scan-limit fixes
+
+**Problems found in the AI-assisted implementation:**
+- Failed page reads could leave the buffer pool's page table inconsistent.
+- Failed allocation consumed a page ID before checking frame availability.
+- Failed heap insertion left a directory page pinned.
+- Limited scans requested an extra record and could read another page.
+- The CLI collected the full scan result instead of streaming rows.
+- CSV field-count errors omitted the column, and extremely long integers
+  could raise ValueError instead of a contextual LoadError.
+
+**Fixes applied:**
+- Kept the old page mapping until the replacement page was available.
+- Obtained a frame before allocating a page ID.
+- Added finally-based cleanup for pins acquired by heap insertion.
+- Applied scan limits before requesting another record and streamed output.
+- Added column context to field-count errors and bounded integer conversion.
+
+**Why the previous tests missed these problems:**
+- They checked that exceptions occurred without checking recovery afterward.
+- Limit tests checked returned row counts without checking page reads.
+- CSV tests did not include extremely long integer strings.
+
+**Verification:**
+- Ran `python3 -m unittest discover -s tests -v`.
+- All 194 tests passed, including the six new regression tests.
+- Ran `python3 measure_m1.py`. All measurements matched REPORT_M1.md:
+  capacities were 255, 227 and 19 records per page; both policy tables
+  were unchanged; scanning 127,500 rows across 500 data pages plus one
+  directory page required 501 reads at B = 2, 8 and 64, with zero writes.
+- Installed the package with `python3 -m pip install -e .`.
+- Verified that `storage --help` lists create-table, load, scan,
+  layout and trace.

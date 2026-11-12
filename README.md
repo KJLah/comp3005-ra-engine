@@ -12,6 +12,46 @@ through the explicit `distinct(expr)` operator.
 
 It needs Python 3.8 or newer and no third-party packages. matplotlib is
 optional and is used only by `bench.py` to draw the plot for the report.
+## Module 1: storage engine and buffer pool
+
+Module 1 implements record encoding, slotted pages, heap files, a
+persistent catalog, CSV loading, and a buffer pool with LRU and CLOCK
+replacement. Stored tables can also be queried through the relational
+algebra engine.
+
+### Install the storage command
+
+From the repository root, run:
+
+```bash
+python3 -m pip install -e .
+storage --help
+```
+
+The command provides `create-table`, `load`, `scan`, `layout` and `trace`.
+Without installation, the same CLI is available as `python3 -m storage`.
+
+### Tests and measurements
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 measure_m1.py
+```
+
+The verified suite contains 194 tests. The measurements cover record
+capacity, replacement-policy hit rates, and scan cost.
+
+### Module 1 documentation
+
+- [DESIGN_M1.md](DESIGN_M1.md): page and catalog formats, free-space
+  strategy, pinning, failure recovery, and implementation decisions.
+- [REPORT_M1.md](REPORT_M1.md): capacity, replacement-policy and
+  scan-cost measurements.
+- [DESIGN_LOG.md](DESIGN_LOG.md): development history, problems found
+  in the AI-assisted implementation, fixes, and verification results.
+
+Scan counters currently measure table-page accesses only. Catalog
+accesses use a separate four-frame pool, as documented in DESIGN_M1.md.
 
 ## How to run
 

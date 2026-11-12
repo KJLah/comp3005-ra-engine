@@ -107,3 +107,26 @@ def predicate_for_row(cond, attributes):
         cond, attributes, split=len(attributes)
     )
     return lambda row: predicate(row, ())
+
+def qualify_operand(node, attributes):
+    """Return the operand with its table name filled in (Num/Str unchanged)."""
+    if isinstance(node, Attr):
+        a = attributes[resolve(attributes, node)]
+        return Attr(a.name, a.qualifier, node.pos)
+    return node
+
+
+def qualify_condition(cond, attributes):
+    """Return a copy of the condition where every attribute is Table.column."""
+    if isinstance(cond, Compare):
+        return Compare(cond.op, qualify_operand(cond.left, attributes),
+                       qualify_operand(cond.right, attributes), cond.pos)
+    if isinstance(cond, And):
+        return And(qualify_condition(cond.left, attributes),
+                   qualify_condition(cond.right, attributes), cond.pos)
+    if isinstance(cond, Or):
+        return Or(qualify_condition(cond.left, attributes),
+                  qualify_condition(cond.right, attributes), cond.pos)
+    if isinstance(cond, Not):
+        return Not(qualify_condition(cond.operand, attributes), cond.pos)
+    raise AssertionError(f"unknown condition node {cond!r}")

@@ -10,7 +10,8 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 PKG = os.path.join(ROOT, "ra_engine")
 FORBIDDEN_CALLS = {"print", "input", "open"}
 LAYERS = ["ra_engine.lexer", "ra_engine.parser", "ra_engine.ast_nodes",
-          "ra_engine.operators"]
+          "ra_engine.operators", "ra_engine.conditions", "ra_engine.planner",
+          "ra_engine.serialization", "ra_engine.sources"]
 
 
 def module_tree(filename):
