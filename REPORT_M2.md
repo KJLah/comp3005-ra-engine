@@ -2,9 +2,7 @@
 
 Every number below comes from `python3 measure_m2.py`. It builds the tables,
 runs each plan through the same code as `exec run`, and writes
-`results/m2/*.csv` and the two plots. Counters are page I/O and comparisons,
-not time, so the numbers are the same on every machine and on every run
-(tested: same plan, same B, same counters).
+so the numbers are the same on every run (tested: same plan, same B, same counters). Page I/O is the same on every machine. The sort’s comparison count can differ slightly between Python versions, because pass 0 uses the built-in sort; these numbers are from Python 3.11.
 
 **Data.** Records are `id:INT, k:INT, pad:VARCHAR(200)`, 210 bytes, so 19 per
 page. The join key `k` is uniform over 1000 values unless stated otherwise.
@@ -25,40 +23,40 @@ Formulas from Section 2 with the plan's B:
 | Join | M | N | B | formula reads | measured reads | formula writes | measured writes | comparisons |
 |---|---|---|---|---|---|---|---|---|
 | BNL | 16 | 8 | 4 | 80 | 89 | 0 | 0 | 46,208 |
-| SMJ | 16 | 8 | 4 | 88 | 110 | 64 | 84 | 3,635 |
+| SMJ | 16 | 8 | 4 | 88 | 110 | 64 | 84 | 3,621 |
 | Hash | 16 | 8 | 4 | 48 | 96 | 24 | 58 | 49 |
 | BNL | 16 | 8 | 16 | 32 | 33 | 0 | 0 | 46,208 |
-| SMJ | 16 | 8 | 16 | 48 | 66 | 24 | 40 | 3,766 |
+| SMJ | 16 | 8 | 16 | 48 | 66 | 24 | 40 | 3,747 |
 | Hash | 16 | 8 | 16 | 48 | 65 | 24 | 39 | 49 |
 | BNL | 16 | 8 | 64 | 24 | 26 | 0 | 0 | 46,208 |
-| SMJ | 16 | 8 | 64 | 48 | 50 | 24 | 24 | 3,563 |
+| SMJ | 16 | 8 | 64 | 48 | 50 | 24 | 24 | 3,547 |
 | Hash | 16 | 8 | 64 | 48 | 144 | 24 | 122 | 49 |
 | BNL | 16 | 8 | 256 | 24 | 26 | 0 | 0 | 46,208 |
-| SMJ | 16 | 8 | 256 | 48 | 50 | 24 | 24 | 3,563 |
+| SMJ | 16 | 8 | 256 | 48 | 50 | 24 | 24 | 3,547 |
 | Hash | 16 | 8 | 256 | 48 | 190 | 24 | 275 | 49 |
 | BNL | 64 | 32 | 4 | 1088 | 1121 | 0 | 0 | 739,328 |
-| SMJ | 64 | 32 | 4 | 448 | 622 | 352 | 524 | 18,461 |
+| SMJ | 64 | 32 | 4 | 448 | 622 | 352 | 524 | 18,409 |
 | Hash | 64 | 32 | 4 | 192 | 489 | 96 | 325 | 5,568 |
 | BNL | 64 | 32 | 16 | 224 | 230 | 0 | 0 | 739,328 |
-| SMJ | 64 | 32 | 16 | 288 | 290 | 192 | 192 | 19,729 |
+| SMJ | 64 | 32 | 16 | 288 | 290 | 192 | 192 | 19,656 |
 | Hash | 64 | 32 | 16 | 192 | 208 | 96 | 110 | 764 |
 | BNL | 64 | 32 | 64 | 128 | 129 | 0 | 0 | 739,328 |
-| SMJ | 64 | 32 | 64 | 192 | 258 | 96 | 160 | 19,264 |
+| SMJ | 64 | 32 | 64 | 192 | 258 | 96 | 160 | 19,200 |
 | Hash | 64 | 32 | 64 | 192 | 255 | 96 | 157 | 764 |
 | BNL | 64 | 32 | 256 | 96 | 98 | 0 | 0 | 739,328 |
-| SMJ | 64 | 32 | 256 | 192 | 194 | 96 | 96 | 18,203 |
+| SMJ | 64 | 32 | 256 | 192 | 194 | 96 | 96 | 18,140 |
 | Hash | 64 | 32 | 256 | 192 | 526 | 96 | 464 | 764 |
 | BNL | 256 | 128 | 4 | 16640 | 16769 | 0 | 0 | 11,829,248 |
-| SMJ | 256 | 128 | 4 | 2304 | 3246 | 1920 | 2860 | 87,749 |
+| SMJ | 256 | 128 | 4 | 2304 | 3246 | 1920 | 2860 | 87,540 |
 | Hash | 256 | 128 | 4 | 768 | 2342 | 384 | 1188 | 447,130 |
 | BNL | 256 | 128 | 16 | 2688 | 2708 | 0 | 0 | 11,829,248 |
-| SMJ | 256 | 128 | 16 | 1408 | 1410 | 1024 | 1024 | 94,059 |
+| SMJ | 256 | 128 | 16 | 1408 | 1410 | 1024 | 1024 | 93,757 |
 | Hash | 256 | 128 | 16 | 768 | 1465 | 384 | 890 | 11,831 |
 | BNL | 256 | 128 | 64 | 896 | 902 | 0 | 0 | 11,829,248 |
-| SMJ | 256 | 128 | 64 | 1152 | 1154 | 768 | 768 | 93,918 |
+| SMJ | 256 | 128 | 64 | 1152 | 1154 | 768 | 768 | 93,640 |
 | Hash | 256 | 128 | 64 | 768 | 832 | 384 | 446 | 11,831 |
 | BNL | 256 | 128 | 256 | 512 | 513 | 0 | 0 | 11,829,248 |
-| SMJ | 256 | 128 | 256 | 768 | 1026 | 384 | 640 | 91,456 |
+| SMJ | 256 | 128 | 256 | 768 | 1026 | 384 | 640 | 91,184 |
 | Hash | 256 | 128 | 256 | 768 | 1024 | 384 | 639 | 11,831 |
 
 ### Where measurement and formula disagree, and why
