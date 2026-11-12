@@ -245,6 +245,76 @@ wrong, slow or incomplete: what the problem was and how I found it.
 
 --
 
+## 2026-11-09: Module 1 step 2, disk manager and buffer pool
+
+**Goal:** read and write 4096-byte pages through a buffer pool with LRU and
+CLOCK, and reproduce the 5.3 trace exactly.
+
+**Decisions:**
+- Pages are keyed by (file, page id), because catalog.db and every table share one pool.
+- Empty frames are filled first, lowest index first, before asking the policy for a victim.
+- `new_page()` counts as no hit, miss, read or eviction; its write is counted when flushed or evicted.
+- CLOCK advances the hand past every newly loaded page, including ones placed in empty frames. This is what reproduces 5.3.
+- Result: LRU 1 hit / 5 misses / 2 evictions, CLOCK 2 / 4 / 1 at B = 3.
+
+---
+
+## 2026-11-09: Module 1 step 3, heap file
+
+**Goal:** directory pages, first-fit insert, get, delete, and a scan that never pins more than one directory page and one data page.
+
+**Decisions:**
+- First fit, in directory order, using the free_bytes stored in each directory entry.
+- No compaction: a delete marks the slot dead and the space is not reused, so rids never move.
+- New pages (data or directory) are always appended at the end of the file.
+- `scan()` is a generator with `finally` blocks, so stopping early still unpins.
+
+---
+
+## 2026-11-09: Module 1 step 4, catalog
+
+**Goal:** store table metadata in catalog.db, read through the buffer pool.
+
+**Decisions:**
+- catalog.db is itself a heap file; each table is one record.
+- Record has a version byte and a trailing JSON statistics field (`{}` now) so Module 4 can add stats without changing the format.
+- `update()` deletes and reinserts the record.
+
+---
+
+## 2026-11-09: Module 1 step 5, CSV loader
+
+**Goal:** load a CSV file into a table, with errors naming the line and column.
+
+**Decisions:**
+- Hand-written parser (no csv module), quoted fields and `""` supported.
+- All or nothing: the whole file is checked before anything is inserted.
+- VARCHAR length counted in UTF-8 bytes; INT may have surrounding spaces.
+
+---
+
+## 2026-11-09: Module 1 step 6, command line
+
+**Goal:** `create-table`, `load`, `scan`, `layout`, `trace` with the exact JSON shapes.
+
+**Decisions:**
+- `scan --frames B` uses a fresh pool for the table only; the catalog gets its own 4-frame pool, so scan counters count only table pages.
+- `scan` requires B ≥ 2.
+- Errors print one line (`Error: ...`, exit 1), never a traceback.
+
+---
+
+## 2026-11-09: Module 1 step 7, measurements
+
+**Goal:** fill REPORT_M1.md: capacity table, 5 traces × 2 policies × 4 frame sizes, 500-page scan at B = 2, 8, 64.
+
+**Decisions:**
+- Wrote our own five traces (the published ones were not released; professor's reply 2026-11-08).
+- Random traces use a fixed LCG so every number is the same on every machine.
+- We would ship CLOCK: hit rates within 1.5 points of LRU, and cheaper per hit.
+
+---
+
 ## 2026-11-09: Module 1 step 8, querying stored tables with the engine
 
 **Goal:** let the relational algebra engine from Bonus 1 query tables

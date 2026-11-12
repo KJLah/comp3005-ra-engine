@@ -4,7 +4,7 @@ This document records the design of the storage layer (`storage/`) and every
 choice the Module 1 specification leaves open. Section numbers in brackets
 refer to the Module 1 document.
 
-Status key: ✅ written · ⏳ filled in at a later step
+Status key: ✅ written
 
 ---
 
@@ -20,8 +20,8 @@ Status key: ✅ written · ⏳ filled in at a later step
 | `storage/heap.py` | §4 | `DirectoryPage`, `HeapFile` |
 | `storage/catalog.py` | §6 | `Catalog`, `TableInfo` |
 | `storage/csvload.py` | §6 | `split_line`, `load_csv` |
-| `storage/cli.py` | §10 | command line: `create-table`, `load`, `scan`, `layout`, `trace` |
-| `storage/__main__.py` | §10 | lets you run it as `python3 -m storage ...` |
+| `storage/cli.py` | §7 | command line: `create-table`, `load`, `scan`, `layout`, `trace` |
+| `storage/__main__.py` | §7 | lets you run it as `python3 -m storage ...` |
 
 The library never prints and never reads a file except through the disk
 manager. Only `storage/cli.py` prints or opens a user's file.
@@ -218,7 +218,7 @@ length followed by UTF-8):
 | statistics | 2 + n | UTF-8 JSON, `{}` in Module 1 |
 
 Example: table `R(a INT, b VARCHAR(20), c INT)` with 3 pages and 300 tuples
-is one 42-byte record. <!-- check with `storage layout --db DIR --table catalog --page 1` at step 6 -->
+is one 42-byte record.
 
 **Room for Module 4.** The statistics field is last and variable length, so
 Module 4 can store distinct counts, min/max or histograms there without
@@ -313,15 +313,15 @@ instead of Python's `random`, so the files, and every number in REPORT_M1.md,
 are the same on every machine. `tests/test_m1_traces.py` pins the first
 values so we notice if they ever change.
 
-## 9. Errors [§9] ✅ partly
+## 9. Errors [§9] ✅
 
 | Case | Behaviour | Where |
 |---|---|---|
 | Evicting a pinned page | never happens; fetch raises `BufferPoolError` "no unpinned frame available" | `buffer.py` ✅ |
 | Unpin at pin count 0 | `BufferPoolError` | `buffer.py` ✅ |
 | Reading a dead slot | `PageError` naming the rid | `page.py` ✅ |
-| Record over 4084 bytes | `RecordError` naming the table (the loader adds the row number, step 5) | `heap.py` ✅ |
-| Bad CSV field | ` LoadError` error naming line and column | `csvload.py`  ✅ |
+| Record over 4084 bytes | `RecordError` naming the table (the loader adds the line number) | `heap.py` ✅ |
+| Bad CSV field | `LoadError` naming the line and column | `csvload.py` ✅ |
 
 ## 10. Command line ✅
 
@@ -329,8 +329,8 @@ values so we notice if they ever change.
 
 **Decisions and why**
 
-1. **`python3 -m storage` instead of a `storage` script.** The spec writes `storage scan ...`. A `storage.py` file at the root would clash with the `storage/` package, so `storage/__main__.py` is the entry point. Nothing needs installing.
-2. **The catalog gets its own small pool (4 frames).** `scan --frames B` builds a fresh pool for the table only. So its counters count only the table's pages, and the same command always prints the same numbers. A scan of a 1 + 9 page table reads 10 pages at B = 2, 8 and 64.
+1. **Command entry point.** Installing from the repository root with `python3 -m pip install -e .` provides the `storage` command through the console entry point in pyproject.toml.`python3 -m storage` remains available without installation. Both invoke the same CLI implementation.
+2. **The catalog gets its own small pool (4 frames).** `scan --frames B` builds a fresh pool for the table only. So its counters count only the table's pages, and the same command always prints the same numbers. A scan of a 1 + 9 page table reads 10 pages at B = 2, 8 and 64. This is our interpretation of the scan measurement scope. The instructor clarified: “Where something is unclear, make a reasonable choice and state it in your design document.” We therefore report table-scan counters separately from catalog accesses.
 3. **`scan` needs B ≥ 2.** A scan pins one directory page and one data page at the same time (section 4). B = 1 gives a clear error instead of "no unpinned frame".
 4. **Streaming scans and limits.** The scan command streams rows directly to text or JSON output rather than collecting the whole table. The limit is applied before requesting another record, so stopping at a page boundary does not read the next data page. The scan
 generator is closed in a `finally` block, which unpins any open pages when the scan finishes or stops early.
