@@ -78,9 +78,12 @@ at B = 64 make ceil(64/63) = 2 runs and need a merge pass, where the
 formula sees ceil(64/64) = 1 run. At B = 4 the same thing compounds:
 F = 3 gives a merge fan-in of 2 instead of 3, so 64 pages take 6 passes
 instead of 4. Where a pass boundary isn't crossed (B = 16 and 64 at
-M = 256), measured equals formula + 2 directory pages exactly. A small
-input that fits in one page (N = 8 at B = 64 and 256) is never written,
-which is why measured writes can be below N × passes.
+M = 256), measured equals formula + 2 directory pages exactly. For M = 16 
+and N = 8 at B = 64 or 256, both inputs fit in their run-generation budgets, 
+but the join keeps only one streaming frame per input. 
+Both sorted inputs are therefore written to temporary runs:
+24 writes in total. Reading the inputs and those runs, including the
+two directory pages, gives 50 reads.
 
 **Hash is close to 3(M + N) only when every partition fits.** The formula
 assumes each R_i fits in B − 1 pages, which needs roughly M ≤ (B − 1)².
@@ -199,53 +202,71 @@ lead over SMJ almost disappears. With still more data at this B, SMJ
 
 ## 4. Skew
 
-Hash join at B = 16 (P = 15), M = 64, N = 32. The skewed tables put key 0
-on 40% of the rows of both sides; the other rows are uniform over 1000 keys.
+Hash join runs at B = 16 with P = 15 partitions. Both the uniform and
+skewed datasets contain 1,215 left rows and 605 right rows, occupying
+64 and 32 data pages.
 
-| Data | rows out | reads | writes | comparisons |
+The skewed datasets contain exactly 486 left rows and 242 right rows
+with key 0: 40% on each side. Remaining keys are nonzero. Both datasets
+are shuffled with fixed seeds for reproducible results.
+
+| Data | Rows out | Reads | Writes | Comparisons |
 |---|---|---|---|---|
-| uniform | 764 | 208 | 110 | 764 |
-| 40% one key | 121,026 | 371 | 216 | 121,026 |
+| Uniform | 755 | 207 | 109 | 755 |
+| 40% one key | 117,892 | 366 | 213 | 117,892 |
 
-**Partition sizes (R pages, S pages).** Uniform: every level-1 partition
-is 3 to 6 R pages and 2 to 3 S pages, all fit in the 15-page table, and
-nothing overflows. Skewed: 14 partitions of 2 to 4 pages and one of
-**(29, 15)**, the partition key 0 hashes to.
+### Partition sizes
 
-**What overflow handling did.** The 29-page R partition doesn't fit in 15
-pages, so it was re-partitioned with the next seed. That split off the
-other keys sharing it, leaving (27, 13). The (27, 13) pair was partitioned
-again; it landed whole in one sub-partition and did not shrink, so it went
-straight to the fallback. That is a block nested loop on that one pair,
-14 pages of R per block (2 blocks), with S_i streamed past each block.
+In the uniform case, the first-level partitions contain 3–6 left pages
+and 2–3 right pages. All fit in the 15-page build-table budget, so no
+overflow handling is needed.
 
-**Cost against the uniform case.** 587 page I/Os instead of 318 (1.8×).
-The two extra partitioning rounds of the hot partition each read and write
-it again, and the fallback reads S_i once per block. The output is 158
-times larger: 0.4 × 1216 × 0.4 × 608 ≈ 118,000 pairs of key 0 alone. So
-almost all of the comparisons are real matches, because inside the
-fallback every pair has the same key. No re-partitioning can help a single
-key, which is why a pair that does not shrink goes to the fallback instead
-of using up the remaining depth. The result is identical to the
-nested-loop and sort-merge joins on the same data (tested).
+In the skewed case, the partition containing key 0 has 28 left pages
+and 14 right pages. Other first-level partitions contain 2–4 left
+pages and 1–2 right pages.
+
+### Overflow handling
+
+The 28-page left partition exceeds the 15-page build-table budget.
+Repartitioning with the next hash seed separates some other keys and
+leaves a hot partition pair of 26 left pages and 13 right pages.
+
+A second repartition still leaves a 26/13 pair. Because it did not
+shrink, that pair uses the block nested-loop fallback rather than
+being repartitioned again.
+
+At B = 16, the fallback holds B − 2 = 14 pages of the left input per
+block. The 26-page left partition therefore requires two blocks,
+with the right partition scanned for each block.
+
+### Cost compared with uniform data
+
+Total page I/O increases from 207 + 109 = 316 in the uniform case
+to 366 + 213 = 579 under skew, approximately 1.83 times as much.
+The extra cost comes from repartitioning the overflowing partition
+and rescanning its right side during the fallback.
+
+The hot key alone produces 486 × 242 = 117,612 matching pairs.
+Other keys contribute 280 matches, giving 117,892 output rows.
+Repeated copies of one key cannot be separated by changing the hash
+seed, which explains the need for the fallback.
 
 ## 5. The budget
 
-A sort of N = 80 pages (20 × B) at B = 4: 1,520 rows sorted correctly,
-27 initial runs, 6 passes. **The largest number of frames held at once was
-4.** We know this two ways:
+A sort of N = 80 pages (20 × B) at B = 4 returns 1,520 correctly
+sorted rows, with 27 initial runs and 6 passes.
 
-1. **The pool cannot exceed B.** The plan's buffer pool has exactly 4
-   frames, and every page an operator holds is pinned in it. A fifth pin
-   would raise "no unpinned frame available".
-2. **We recorded it.** `BufferPool.peak_pinned` counts the most frames
-   pinned at once (4), and the budget's `peak_reserved` counts the most
-   frames operators had reserved (4). `exec trace` prints the peak after
-   every plan.
+For this run, peak_pinned and peak_reserved are both 4. These counters
+measure pinned frames and declared reservations. They do not, by
+themselves, detect additional tuple collections retained in Python.
 
-The hash table and the equal-key run of sort-merge join are not pinned
-pages. They are charged by size against frames their operator reserved, so
-they are covered by the second count (DESIGN_M2.md §3).
+Hash-table entries are charged by encoded size plus slot overhead.
+Regression coverage also checks that a completed grouping partition's
+table is cleared before the next table is built. This addresses the
+retained-table overlap found during review.
+
+These checks provide evidence for the tested execution paths rather
+than proving that every possible plan has no untracked memory.
 
 Every sample plan in `plans/` (one per operator, plus a 7-operator
 pipeline) runs at B = 4 on both a 3000-row database and an empty one, and
