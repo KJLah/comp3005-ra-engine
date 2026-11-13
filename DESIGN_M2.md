@@ -250,7 +250,7 @@ distinct is a grouping on every column with no aggregates.
 - **The table respects its frames.** Each entry is charged the size of its
   encoded state record plus a 4-byte slot, as if it were stored in a slotted
   page, and the table refuses an entry that would take it past its pages.
-  - **Partition lifetime.** After a partition's output is emitted, its
+- **Partition lifetime.** After a partition's output is emitted, its
   hash table is cleared in a finally block before another table is built.
   Limiting each table separately is insufficient if the previous table
   remains referenced.
@@ -276,6 +276,10 @@ input is sorted first and merged down so it streams with 1 frame; the right
 input is sorted with every frame left. So these need 2 frames to stream.
 Comparisons: both sorts, every merge comparison, and one per adjacent pair
 checked when skipping duplicates.
+
+When a blocking right subtree needs additional opening memory, the
+completed left result is parked on disk and its streaming reservation
+released temporarily. The reservation is restored before merging.
 
 ## 13. Materialising when the parent leaves too few frames ✅
 
