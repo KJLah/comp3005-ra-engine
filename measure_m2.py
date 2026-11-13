@@ -42,9 +42,9 @@ class DB:
         self.dir = self.tmp.name
         self.cat = Catalog(self.dir, BufferPool(16))
 
-    def table(self, name, pages, keyfn, seed):
+    def table(self, name, pages, keyfn, seed, row_count=None):
         rnd = random.Random(seed)
-        n = pages * PER_PAGE
+        n = pages * PER_PAGE if row_count is None else row_count
         rows = [f"{i},{keyfn(i, rnd)},{PAD}" for i in range(n)]
         rnd.shuffle(rows)
         self.cat.create_table(name, parse_schema("id:INT,k:INT,pad:VARCHAR(200)"))
@@ -84,6 +84,8 @@ def join(op, l, r):
 def uniform(i, rnd):
     return rnd.randrange(KEYS)
 
+def forty_percent(i, rnd):
+    return 0 if i % 5 < 2 else 1 + rnd.randrange(KEYS)
 
 # ---- formulas (section 2, with the handout's B) ------------------------------------
 def passes(x, b):
@@ -276,10 +278,13 @@ def main():
     crossover(db, sizes[1], [4, 5, 6, 8, 12, 16, 24, 34, 48, 66, 96, 128], size_tables, 16)
     plot()
 
-    hot = lambda i, rnd: 0 if rnd.random() < 0.4 else 1 + rnd.randrange(KEYS)
-    db.table("KL", 64, hot, 11)
-    db.table("KR", 32, hot, 12)
-    skew(db, ("R64", "S64"), ("KL", "KR"), 16)
+    # Equal row counts for the uniform and skewed comparisons.
+    # These counts are divisible by 5 and still occupy 64/32 pages.
+    db.table("UL", 64, uniform, 2, row_count=1215)
+    db.table("UR", 32, uniform, 102, row_count=605)
+    db.table("KL", 64, forty_percent, 11, row_count=1215)
+    db.table("KR", 32, forty_percent, 12, row_count=605)
+    skew(db, ("UL", "UR"), ("KL", "KR"), 16)
 
     budget(db, "T80", 80)
     db.tmp.cleanup()
