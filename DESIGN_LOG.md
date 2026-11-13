@@ -546,6 +546,13 @@ through the buffer pool.
 - The report incorrectly described an eight-page input as one page and
   overstated what pinned-frame counters prove about total memory.
 
+**Additional issue found during follow-up review:**
+- The join-specific fixes worked, but set operators still retained
+  their left streaming reservation while opening a blocking right
+  subtree. Valid union, intersect and except plans could fail at B = 4.
+- Applied the same parking strategy to set operators and added one
+  regression test covering all nine combinations with right-side joins.
+
 **Fixes applied:**
 - Release idle hash partition reservations during right-child open.
 - Park the completed left sort result when needed for a nested right
@@ -558,9 +565,11 @@ through the buffer pool.
 
 **Verification:**
 - Full-suite command: python3 -m unittest discover -s tests -v
-- Actual result: [record your result]
+- Actual result: all 292 tests passed.
 - Added tests for nested joins, partial-execution counters and
   partition-table lifetime.
 - Measurement command: python3 measure_m2.py
-- Updated skew results: [record your results]
+- Updated skew results: uniform produced 755 rows with 207 reads and
+  109 writes; exact 40% skew produced 117,892 rows with 366 reads and
+  213 writes.
 
