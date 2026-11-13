@@ -250,6 +250,10 @@ distinct is a grouping on every column with no aggregates.
 - **The table respects its frames.** Each entry is charged the size of its
   encoded state record plus a 4-byte slot, as if it were stored in a slotted
   page, and the table refuses an entry that would take it past its pages.
+  - **Partition lifetime.** After a partition's output is emitted, its
+  hash table is cleared in a finally block before another table is built.
+  Limiting each table separately is insufficient if the previous table
+  remains referenced.
 - **Hash comparisons.** The table is a dict from h2(key) to a bucket list;
   a lookup compares the key with every entry of its bucket, one comparison
   each. Partition routing compares nothing.
@@ -318,6 +322,10 @@ frame the child gives back when it closes is taken for the merge passes.
 - **Merge** follows the handout's pseudocode. The right side's run of equal
   keys is collected, then replayed ("rewind to mark") for every left tuple
   with that key. The 2.8 example returns four rows (tested).
+- **Nested right inputs at small budgets.** When necessary, the completed
+  left result is parked on disk and its streaming reservation released
+  while the right subtree opens. The left-reader reservation is restored
+  before merging. Parking a memory-resident run adds temporary I/O.
 - **A run of equal keys larger than memory is spilled.** The run is kept in
   memory while it fits in one page (the third merge frame). Beyond that it
   is written to a temp file through the same frame and re-read for every
@@ -336,6 +344,9 @@ frame the child gives back when it closes is taken for the merge passes.
   partitioned by h1(key) mod P and closed, then the right with the same P.
   h1 at level d is our FNV hash with seed d; the in-memory table uses h2
   (seed 1000), so partitioning and bucketing never correlate.
+- **Opening the right subtree.** After the left partition writers close,
+  their frame reservations are released while the right child opens.
+  The partition reservations are reacquired before consuming its output.
 - **Probe phase** (in `next`). The join keeps S = min(B, limit) frames:
   a table of S − 1 pages and 1 frame to read R_i, then S_i. **A pair with
   an empty side is skipped unread**, since nothing can match. That is why
@@ -377,8 +388,8 @@ at that moment; while streaming, at most its `limit`.
 An operator whose parent leaves it fewer frames than it needs to stream
 materialises its output (§13).
 
-**How we know the maximum held.** The plan's pool has exactly B frames, so
-holding more is impossible: the pool raises. `BufferPool.peak_pinned`
-records the most frames pinned at once, and `exec trace` prints it after
-every plan. For the 20 × B sort at B = 4 it is 4 (REPORT_M2.md §5). The
-budget's `peak_reserved`, the reservations made by operators, is also 4.
+**How the budget is checked.** peak_pinned records pinned buffer frames,
+and peak_reserved records declared frame reservations. Neither alone
+detects tuple collections retained outside the pool. Encoded-size
+accounting and lifetime tests are therefore also required. Regression
+tests cover completed partition-table cleanup and nested joins at B = 4.
