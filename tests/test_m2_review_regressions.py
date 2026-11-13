@@ -16,6 +16,52 @@ def join(op, left, right, condition):
 
 
 class ReviewRegressions(unittest.TestCase):
+    def test_set_operators_with_right_join_at_b4(self):
+        tables = {
+            t: (
+                "a:INT,pad:VARCHAR(200)",
+                [f"{i}," + t * 200 for i in range(n)],
+            )
+            for t, n in (("R", 120), ("S", 80), ("T", 60))
+        }
+
+        left_rows = [(i, "R" * 200) for i in range(120)]
+        right_rows = [(i, "S" * 200) for i in range(60)]
+        expected = {
+            "union": left_rows + right_rows,
+            "intersect": [],
+            "except": left_rows,
+        }
+        algorithms = (
+            "nested_loop_join",
+            "sort_merge_join",
+            "hash_join",
+        )
+
+        with make_db(tables) as db:
+            for op in ("union", "intersect", "except"):
+                for algorithm in algorithms:
+                    with self.subTest(op=op, algorithm=algorithm):
+                        right = {
+                            "op": "project",
+                            "columns": ["S.a", "S.pad"],
+                            "child": join(
+                                algorithm,
+                                scan("S"),
+                                scan("T"),
+                                "S.a=T.a",
+                            ),
+                        }
+                        plan = {
+                            "op": op,
+                            "left": scan("R"),
+                            "right": right,
+                        }
+                        result = run_plan(db, plan, 4)
+                        self.assertCountEqual(
+                            result.rows, expected[op]
+                        )
+
     def test_right_nested_joins_at_b4(self):
         tables = {
             t: (
