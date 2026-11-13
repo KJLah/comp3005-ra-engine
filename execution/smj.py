@@ -23,6 +23,7 @@ from .conditions import equi_keys
 from .hashing import PAGE_BYTES
 from .schema import KeyComparator, PairComparator, Row, Schema, encode
 from .sort import sort_child
+from .nlj import is_rescannable
 
 SLOT = 4
 
@@ -86,9 +87,45 @@ class SortMergeJoin(Operator):
     def _open(self, limit: int) -> None:
         self.spills = 0
         left, right = self.children
-        self.ls = sort_child(self, left, [(i, True) for i in self.lk], 1, "left")
-        self.rs = sort_child(self, right, [(i, True) for i in self.rk], 1, "right")
-        self.hold(1)                    # the right run of equal keys
+
+        self.ls = sort_child(
+            self, left,
+            [(i, True) for i in self.lk],
+            1, "left",
+        )
+
+        parked = 0
+
+        if self.ctx.free() < 4 and not is_rescannable(right):
+            parked = self.ls.stream_frames()
+
+            # A memory-resident left run must reach disk before
+            # its reservation can be released.
+            if self.ls.mem_run is not None:
+                t = self.new_temp("parked_left", left.schema)
+                w = t.writer()
+
+                rows = self.ls.mem_run
+                rows.reverse()
+                while rows:
+                    w.add(rows.pop())
+
+                w.close()
+                self.ls.mem_run = None
+                self.ls.mem_pages = 0
+                self.ls.runs = [t]
+
+            self.unhold(parked)
+
+        self.rs = sort_child(
+            self, right,
+            [(i, True) for i in self.rk],
+            1, "right",
+        )
+
+        # Restore the left reader reservation, when parked,
+        # and reserve the equal-key run buffer.
+        self.hold(1 + parked)
         self.it = self._merge()
 
     def label(self) -> str:

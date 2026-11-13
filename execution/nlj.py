@@ -123,10 +123,9 @@ class NestedLoopJoin(Operator):
             if not block:
                 break
             self.blocks += 1
-            n = len(block)
             for s in self._inner_rows():
-                self.c.comparisons += n
                 for r in block:
+                    self.c.comparisons += 1
                     if pred(r, s):
                         yield r + s
             self._release_block()

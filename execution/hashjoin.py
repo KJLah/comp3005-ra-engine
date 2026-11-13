@@ -72,8 +72,16 @@ class HashJoin(Operator):
             lp.add(r)
         left.close()
         lfiles = lp.close()
+
+        # Left partition writers are closed. Let a blocking right
+        # subtree use these frames during its open().
+        self.unhold(self.P)
         right.open(1)
-        rp = Partitioner(self, right.schema, self.rkey, self.P, 0, "R")
+        self.hold(self.P)
+
+        rp = Partitioner(
+            self, right.schema, self.rkey, self.P, 0, "R"
+        )
         for s in rows_of(right):
             rp.add(s)
         right.close()
@@ -162,11 +170,10 @@ class HashJoin(Operator):
                 nxt = next(rows, None)
             if not block:
                 return
-            n = len(block)
             for s in sf.rows():
                 k = self.rkey(s)
-                self.c.comparisons += n
                 for key, r in block:
+                    self.c.comparisons += 1
                     if key == k:
                         yield r + s
             if carry is None:

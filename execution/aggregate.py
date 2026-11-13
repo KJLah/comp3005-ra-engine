@@ -273,7 +273,10 @@ class _Grouping(Operator):
             table = self._try_fold(f, S - 1)
             if table is not None:
                 self.drop_temp(f)
-                yield from self._emit_table(table)
+                try:
+                    yield from self._emit_table(table)
+                finally:
+                    table.clear()
             elif depth < MAX_DEPTH:
                 part = Partitioner(self, spec.state_schema, lambda rec: rec[:k],
                                    S - 1, depth, "part")
