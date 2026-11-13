@@ -1,0 +1,1 @@
+{"op": "except", "left": {"op": "project", "columns": ["R.b"], "child": {"op": "seqscan", "table": "R"}}, "right": {"op": "project", "columns": ["S.b"], "child": {"op": "seqscan", "table": "S"}}}

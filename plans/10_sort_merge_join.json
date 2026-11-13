@@ -1,0 +1,1 @@
+{"op": "sort_merge_join", "condition": "R.b = S.b", "left": {"op": "seqscan", "table": "R"}, "right": {"op": "seqscan", "table": "S"}}

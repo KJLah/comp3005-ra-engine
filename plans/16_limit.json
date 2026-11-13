@@ -1,0 +1,1 @@
+{"op": "limit", "n": 10, "child": {"op": "sort", "keys": [["R.a", "desc"]], "child": {"op": "seqscan", "table": "R"}}}

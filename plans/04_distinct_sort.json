@@ -1,0 +1,1 @@
+{"op": "distinct", "mode": "sort", "child": {"op": "project", "columns": ["R.b"], "child": {"op": "seqscan", "table": "R"}}}

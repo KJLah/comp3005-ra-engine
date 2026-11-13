@@ -419,3 +419,157 @@ through the buffer pool.
 - Actual result: [paste your observed result]
 - Measurement command: python3 measure_m1.py
 - Actual result: [state whether it matches REPORT_M1.md]
+
+## 2026-11-12: Module 2 step 1, foundations
+
+**Goal:** the pieces every operator is built on: the iterator base class, schemas and comparisons, plan validation, the frame budget, counter attribution and temporary files.
+
+**Decisions:**
+- Working memory is pinned buffer pool frames; the pool has exactly B frames, so exceeding B is refused by the pool itself. `peak_pinned` is the evidence.
+- I/O is attributed per operator through its own disk handle (`OwnedDisk`), not by diffing the pool's global counters.
+- Temporary pages are written through and dropped from the pool, so measured I/O matches the formulas instead of benefiting from caching.
+- Our own deterministic hash (FNV-1a), because Python's string hash changes between runs.
+- Conditions reuse the Bonus 1 parser and compiler, so INT vs VARCHAR errors are identical to week one.
+
+**AI was wrong:** the base class was first written as `execution/operator.py`. Compiling from inside the package directory failed with a circular import, because that file shadows Python's standard `operator` module. Renamed to `base.py`.
+
+---
+
+## 2026-11-12: Module 2 step 2, pipelined operators and the CLI
+
+**Goal:** seqscan, filter, project, limit, union_all, and `exec run` / `exec trace`, so every later operator can be run end to end.
+
+**Decisions:**
+- seqscan walks the directory itself so it pins one page at a time (Module 1's heap scan pins two).
+- limit closes its child after the n-th tuple, so it stops pulling and returns the child's frames.
+- `run --json` totals: tuples_out of the root, other counters summed over all operators.
+
+**AI was wrong (found by the first test run):** step 1 read the catalog through the plan's own pool of B frames. Module 1's heap scan pins 2 pages, so a plain seqscan showed `peak_pinned = 2` and B = 1 failed at bind with "no unpinned frame available". The catalog now has its own 2-frame pool; metadata lookups happen before the plan runs and never touch B. After the fix all 229 tests pass (Module 1, Bonus 1 and Module 2).
+
+---
+
+## 2026-11-12: Module 2 step 3, external sort
+
+**Goal:** an external merge sort that reproduces the 2.5 example, matches the pass formula, and sorts 20 × B pages at B = 4.
+
+**Decisions:**
+- F (the sort's B) is the frames free after its child is open, fixed for the whole sort.
+- A last group of one run is carried forward, not rewritten: 22 reads / 14 writes on the 2.5 example (23 with the heap's directory page).
+- Merging stops when the runs left fit the frames the parent allows; a sort left 1 frame merges down to a single run.
+- An input that fits in one run is never written.
+- `ExternalSorter` is shared with distinct, group_by, the set operators and sort-merge join.
+
+**Rebased onto main d6bc8b1** (heap delete fix, `page.get` bounds check): no Module 2 change needed; all 242 tests pass.
+
+---
+
+## 2026-11-12: Module 2 step 4, distinct, group_by, set operators
+
+**Goal:** distinct and group_by in sort and hash modes, and union, intersect, except, all working beyond memory and at B = 4.
+
+**Decisions:**
+- distinct is group_by on every column with no aggregates; one implementation.
+- Hash mode spills a partially aggregated table, then partitions state records, so raw tuples and partial results can share a partition.
+- Set operators are sort-based.
+- An operator whose parent leaves it too few frames to stream materialises its output to a temp file.
+
+**AI was wrong (caught by the tests):**
+- The set operators failed at B = 4 with "25 runs to merge but only 2 frames". The right side's sort got F = 2 (the left side held 1 frame, the right seqscan 1), and merging needs 3. Fix: when pass 0 had fewer than 3 frames, the sort takes back the frame its child releases for the merge passes.
+- Hash distinct at B = 4 hit the sort fallback with only 2 frames, and a partition full of duplicates was re-partitioned needlessly because the code decided by page count. Fix: try folding a partition first (duplicates collapse), and give the fallback sort the reading frame back for merging.
+
+---
+
+## 2026-11-12: Module 2 step 5, block nested loop join
+
+**Goal:** a block nested loop join with exactly |R| × |S| comparisons and page reads M + ceil(M/(B−2)) × N.
+
+**Decisions:**
+- K = B − 2 outer frames; the "output frame" reads the outer input, since output goes through `next()`.
+- A pipelined inner is reopened per block; any other inner is materialised once.
+- Measured reads match the formula plus one directory page per scan, with no cache hits at any B tested.
+
+---
+
+## 2026-11-12: Module 2 step 6, sort-merge join
+
+**Goal:** a sort-merge join that handles duplicate keys on both sides and equal-key runs larger than memory.
+
+**Decisions:**
+- Both sorted inputs are merged down to one run each, so the merge uses exactly 3 frames: left run, right run, equal-key run.
+- An equal-key run over one page spills to a temp file and is replayed per left tuple.
+- The 2.8 example returns 4 rows; results match nested loop at B = 4, 5, 8, 16, 64.
+
+---
+
+## 2026-11-12: Module 2 step 7, Grace hash join
+
+**Goal:** a Grace hash join with P = B − 1 partitions, required overflow handling, and correct results under heavy skew.
+
+**Decisions:**
+- Overflow: re-partition with a new seed up to 3 levels, then block nested loop on that pair. A sub-partition that did not shrink skips straight to the fallback.
+- A partition pair with an empty side is skipped unread.
+
+**AI was wrong (caught by the tests):** the first cost test expected probe reads to equal partition writes exactly. They were lower (78 vs 85) because pairs with an empty side are never read. That is correct behaviour; the test now checks reads against the pairs actually probed.
+
+---
+
+## 2026-11-12: Module 2 steps 8 and 9, measurements, docs, checklist
+
+**Goal:** every §5 measurement, the full DESIGN_M2.md, and one test per §6 checklist line.
+
+**Decisions:**
+- `measure_m2.py` runs every measurement through the same code as `exec run`; numbers are counters, so they are identical on any machine (plots need matplotlib).
+- `plans/` holds one sample plan per operator plus a 7-operator pipeline; the checklist tests run all of them through the CLI at B = 4, on a full and an empty database.
+- Hash join keeps the handout's P = B − 1 even when that is wasteful (M = 16 at B = 256 writes 275 pages), so the report tests the handout's formula; the better choice of P is explained in the report instead.
+
+**Result:** 287 tests pass (Module 1, Bonus 1 and Module 2).
+
+---
+
+## 2026-11-13: Module 2 review of nested plans, memory and counters
+
+**Problems found in the AI-assisted implementation:**
+- The original 287 tests passed, but several right-nested joins failed
+  at B = 4.
+- Hash join retained idle partition reservations while opening its
+  right subtree.
+- Sort-merge join retained its left streaming reservation while a
+  blocking right subtree needed that memory.
+- Nested-loop comparison counters charged a whole block before its
+  conditions were evaluated. LIMIT could stop before those comparisons
+  happened. The hash-join fallback had the same issue.
+- Grouping retained a completed partition table while building another.
+  A diagnostic run retained 19,910 bytes of encoded tuple payload and
+  slots against a four-frame budget of 16,384 bytes.
+- The skew generator used a probability of 0.4 rather than producing
+  exactly 40% hot-key rows.
+- The report incorrectly described an eight-page input as one page and
+  overstated what pinned-frame counters prove about total memory.
+
+**Additional issue found during follow-up review:**
+- The join-specific fixes worked, but set operators still retained
+  their left streaming reservation while opening a blocking right
+  subtree. Valid union, intersect and except plans could fail at B = 4.
+- Applied the same parking strategy to set operators and added one
+  regression test covering all nine combinations with right-side joins.
+
+**Fixes applied:**
+- Release idle hash partition reservations during right-child open.
+- Park the completed left sort result when needed for a nested right
+  subtree at a small budget.
+- Count each comparison immediately before it is evaluated.
+- Clear each completed grouping partition table in a finally block.
+- Generate exact 40% skew with equal-sized uniform comparison inputs.
+- Correct the report and distinguish pinned-frame measurements from
+  accounting for retained Python collections.
+
+**Verification:**
+- Full-suite command: python3 -m unittest discover -s tests -v
+- Actual result: all 292 tests passed.
+- Added tests for nested joins, partial-execution counters and
+  partition-table lifetime.
+- Measurement command: python3 measure_m2.py
+- Updated skew results: uniform produced 755 rows with 207 reads and
+  109 writes; exact 40% skew produced 117,892 rows with 366 reads and
+  213 writes.
+
