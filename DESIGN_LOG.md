@@ -524,3 +524,43 @@ through the buffer pool.
 
 **Result:** 287 tests pass (Module 1, Bonus 1 and Module 2).
 
+---
+
+## 2026-11-13: Module 2 review of nested plans, memory and counters
+
+**Problems found in the AI-assisted implementation:**
+- The original 287 tests passed, but several right-nested joins failed
+  at B = 4.
+- Hash join retained idle partition reservations while opening its
+  right subtree.
+- Sort-merge join retained its left streaming reservation while a
+  blocking right subtree needed that memory.
+- Nested-loop comparison counters charged a whole block before its
+  conditions were evaluated. LIMIT could stop before those comparisons
+  happened. The hash-join fallback had the same issue.
+- Grouping retained a completed partition table while building another.
+  A diagnostic run retained 19,910 bytes of encoded tuple payload and
+  slots against a four-frame budget of 16,384 bytes.
+- The skew generator used a probability of 0.4 rather than producing
+  exactly 40% hot-key rows.
+- The report incorrectly described an eight-page input as one page and
+  overstated what pinned-frame counters prove about total memory.
+
+**Fixes applied:**
+- Release idle hash partition reservations during right-child open.
+- Park the completed left sort result when needed for a nested right
+  subtree at a small budget.
+- Count each comparison immediately before it is evaluated.
+- Clear each completed grouping partition table in a finally block.
+- Generate exact 40% skew with equal-sized uniform comparison inputs.
+- Correct the report and distinguish pinned-frame measurements from
+  accounting for retained Python collections.
+
+**Verification:**
+- Full-suite command: python3 -m unittest discover -s tests -v
+- Actual result: [record your result]
+- Added tests for nested joins, partial-execution counters and
+  partition-table lifetime.
+- Measurement command: python3 measure_m2.py
+- Updated skew results: [record your results]
+
