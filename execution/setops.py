@@ -20,6 +20,7 @@ from .base import Operator, register
 from .scan import setop_schema
 from .schema import PairComparator, Row, Schema
 from .sort import sort_child
+from .nlj import is_rescannable
 
 
 def _unique(rows: Iterator[Row], cmp) -> Iterator[Row]:
@@ -41,11 +42,40 @@ class _SetOp(Operator):
         n = len(self.schema)
         keys = [(i, True) for i in range(n)]
         left, right = self.children
+
         self.ls = sort_child(self, left, keys, 1, "left")
-        self.rs = sort_child(self, right, keys, max(1, limit - 1), "right")
+        parked = 0
+
+        if self.ctx.free() < 4 and not is_rescannable(right):
+            parked = self.ls.stream_frames()
+
+            if self.ls.mem_run is not None:
+                t = self.new_temp("parked_left", left.schema)
+                w = t.writer()
+
+                rows = self.ls.mem_run
+                rows.reverse()
+                while rows:
+                    w.add(rows.pop())
+
+                w.close()
+                self.ls.mem_run = None
+                self.ls.mem_pages = 0
+                self.ls.runs = [t]
+
+            self.unhold(parked)
+
+        self.rs = sort_child(
+            self, right, keys, max(1, limit - 1), "right"
+        )
+        self.hold(parked)
+
         cmp = PairComparator(range(n), range(n), self.count)
-        self.it = self._merge(_unique(self.ls.stream(), cmp),
-                              _unique(self.rs.stream(), cmp), cmp)
+        self.it = self._merge(
+            _unique(self.ls.stream(), cmp),
+            _unique(self.rs.stream(), cmp),
+            cmp,
+        )
 
     def _next(self) -> Optional[Row]:
         return next(self.it, None)
