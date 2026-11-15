@@ -27,7 +27,7 @@ q-error = max(est, actual) / min(est, actual), both floored at 1.
 | q02_range | 3 | 1.0 | 1.0 |
 | q03_and | 3 | 1.17 | 1.17 |
 | q04_varchar_range | 3 | 1.0 | 1.0 |
-| q05_or | 3 | 1.29 | 1.29 |
+| q05_or | 3 | 1.06 | 1.06 |
 | q06_not | 3 | 1.08 | 1.08 |
 | q07_join_on | 10 | 1.0 | 1.0 |
 | q08_join_commas | 10 | 1.0 | 1.0 |
@@ -57,7 +57,7 @@ Worst nodes:
 
 **Reading it.** The median is 1.00: scans are exact (their rows are
 statistics), and on single columns the histograms are good. q01 is the skew
-test: `city = 'Toronto'` is estimated at 250 against 223 actual, where
+test: `city = 'Toronto'` estimated at 223 against 223 actual, where
 1/ndv would have said 100 (q-error 2.2). The worst nodes are the interesting
 part, and they have three different causes:
 
