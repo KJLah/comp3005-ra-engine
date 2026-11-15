@@ -151,7 +151,10 @@ radb --db data/demo --file demo_setup.sql            CREATE TABLE ..., LOAD ...,
 python3 run_workload.py --db data/demo --queries demo_queries.sql --repeat 3 --out results/demo
 python3 pg_tools.py export --db data/demo --out pg --queries demo_queries.sql
     copy pg/ to the OpenStack instance, then:
-    cd pg && psql -d DB -f schema.sql && psql -d DB -f load.sql && sh run.sh DB
+    cd pg
+    psql -X -v ON_ERROR_STOP=1 -d DB -f schema.sql
+    psql -X -v ON_ERROR_STOP=1 -d DB -f load.sql
+    sh run.sh DB
 python3 pg_tools.py compare --ours results/demo/rows --ref pg/rows
 ```
 
