@@ -144,7 +144,8 @@ a pipeline).
 
 ## 4. The demo
 
-The dataset and the 25 queries are published 72 hours before the demo.
+The instructor confirmed that no dataset or queries will be provided.
+This submission uses our own dataset and 25-query workload.
 
 ```
 radb --db data/demo --file demo_setup.sql            CREATE TABLE ..., LOAD ..., ANALYZE
