@@ -24,7 +24,7 @@ explain the design.
 | A7 | Inside a bucket and between min and max, values are treated as continuous, so `age > 60` over 20..70 is 10/50 exactly as in §2's example. |
 | A8 | VARCHAR ranges are interpolated by reading the first 8 characters as a base-256 number (improvement 1). |
 | A9 | Histogram cuts never split equal values, so a bucket can be larger than n/k and there can be fewer than k buckets. |
-| A10 | ANALYZE reads the table once for n_tuples, n_pages and width, and sorts each column with the Module 2 external sort (a sort-over-project-over-seqscan plan), which reads the table once more per column. |
+| A10 | ANALYZE scans the original table once, counting live tuples and record bytes while copying live records to temporary storage. Each column is then sorted from that temporary copy using the Module 2 external sort. Temporary storage is removed on completion or failure. |
 | A11 | Column statistics live in a heap file `T.stats` (a catalog record is limited to 4084 bytes); the catalog's statistics field holds the table-level numbers and the file name. |
 | A12 | Rule 4 does not push a select between a rename and its scan ("rename e (scan Emp)" is one access path); this is also what the §3 example shows. |
 | A13 | Rule 3 also adds a two-sided predicate that sits directly on a join to that join's condition (extension); it still converts a cross only for an equality, as §3 says. |
