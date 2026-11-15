@@ -116,6 +116,33 @@ Errors use one format: `error: <category>: <message> at line L, column C`.
 - [DESIGN_M3.md](DESIGN_M3.md): where duplicates are removed, the scope and
   resolution algorithm, the aggregate naming rule, the plan JSON.
 
+## Module 4: query optimizer
+
+Module 4 takes a Module 3 logical plan and produces a Module 2 physical
+plan: statistics from ANALYZE, selectivity and cardinality estimates,
+rewrite rules 1 to 7, a page-I/O cost model, and Selinger-style dynamic
+programming over left-deep join orders.
+
+```bash
+python3 -m pip install -e .                     # adds the `opt` command (or: python3 -m optimizer)
+python3 gen_m4.py --db data/m4                  # our dataset, already ANALYZEd
+opt analyze  --db data/m4 --table Emp           # (re)compute statistics
+opt explain  --db data/m4 --logical queries/m4/q09_three_way.json --frames 8 --rewrites
+opt dp-table --db data/m4 --logical queries/m4/q10_four_way.json --frames 8
+opt plan     --db data/m4 --logical queries/m4/q09_three_way.json --frames 8 --json > p.json
+exec run     --db data/m4 --plan p.json --frames 8          # runs unedited
+python3 measure_m4.py                           # every number in REPORT_M4.md
+```
+
+`queries/m4/` holds the twenty workload queries as SQL and as logical plan
+JSON (`sql compile --json`). The Module 4 tests are `tests/test_m4_*.py`.
+
+- [DESIGN_M4.md](DESIGN_M4.md): assumptions (one line each), statistics
+  layout, selectivity formulas and improvements, rewrite rules, cost model,
+  enumeration and the left-deep argument.
+- [REPORT_M4.md](REPORT_M4.md): q-error, optimized against unoptimized,
+  rule ablation, and the correlated query that breaks the optimizer.
+
 ## How to run
 
 ```bash
