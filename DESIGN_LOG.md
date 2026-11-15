@@ -984,3 +984,16 @@ the M3 integration description. Published all five checkpoint tags.
 
 Official workload validation remains pending release of the instructor's
 dataset and queries.
+
+### Local rehearsal at B=4
+
+All 556 tests passed. Created a fresh database through the integrated
+shell, loaded and analyzed the four tables, and tested SQL, sorting,
+SET frames, and EXPLAIN ANALYZE interactively.
+
+Ran all 25 rehearsal queries at B=4 with three repetitions per query.
+All completed successfully. SQLite reported zero query errors, and
+the typed comparator confirmed 25 of 25 answers matched.
+
+Results are saved in results/demo_check/.
+Official workload and PostgreSQL/OpenStack validation remain pending.
