@@ -46,7 +46,10 @@ class NestedLoopJoin(Operator):
         left, right = self.children[0].schema, self.children[1].schema
         where = f"{self.path} (nested_loop_join)"
         out = left.concat(right, where)
-        self.pred = join_predicate(self.node["condition"], left, right, where)
+        if "condition" in self.node:
+            self.pred = join_predicate(self.node["condition"], left, right, where)
+        else:                                   # Module 4: a cross product
+            self.pred = lambda l, r: True
         return out
 
     def _open(self, limit: int) -> None:
@@ -68,8 +71,10 @@ class NestedLoopJoin(Operator):
             raise BudgetError(f"{self.who}: needs at least 3 frames, has "
                               f"{self.ctx.free() + 1}")
         self.hold(self.K)
-        if self.inner_file is not None:
-            self.hold(1)                      # the frame that reads the temp file
+        # the frame that reads the inner (its temp file, or the pipelined inner
+        # between rescans), held for the whole join so that a blocking parent
+        # cannot take it while the join streams (Module 4 fix, DESIGN_M4.md)
+        self.hold(1)                    # the frame that reads the temp file
         self.blocks = 0
         self.scratch = self.ctx.scratch_disk(f"{self.path} block", self.c)
         self.pinned: List[int] = []
@@ -108,11 +113,13 @@ class NestedLoopJoin(Operator):
             return
         if inner.state != "bound":
             inner.reset()
+        self.unhold(1)                        # lend our inner frame to the inner
         inner.open(1)
         try:
             yield from rows_of(inner)
         finally:
             inner.close()
+            self.hold(1)
 
     def _join(self) -> Iterator[Row]:
         outer_rows = rows_of(self.children[0])

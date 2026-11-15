@@ -42,8 +42,14 @@ class Agg:
     """One aggregate: its function, input column (None for *), output column,
     and the columns its partial state takes in a state record."""
 
-    def __init__(self, fn: str, idx: Optional[int], col: Optional[Col]):
+    def __init__(self, fn: str, idx: Optional[int], col: Optional[Col],
+                 name: Optional[str] = None):
         self.fn, self.idx, self.col = fn, idx, col
+        self._init_cols(fn, col)
+        if name is not None:            # Module 4: an aggregate written with AS
+            self.out = self.out.renamed(name)
+
+    def _init_cols(self, fn: str, col: Optional[Col]) -> None:
         if fn == "count":
             self.out = Col("count_star" if col is None else f"count_{col.name.replace('.', '_')}", INT)
             self.state = [Col(f"_{self.out.name}", BIGINT)]
@@ -320,17 +326,18 @@ class GroupBy(_Grouping):
         where = f"{self.path} (group_by)"
         key_idx = [child.index(name, where) for name in self.node["keys"]]
         aggs = []
-        for fn, col in self.node["aggregates"]:
-            fn = fn.lower()
+        for agg in self.node["aggregates"]:
+            fn, col = agg[0].lower(), agg[1]
+            name = agg[2] if len(agg) == 3 else None     # Module 4: output name
             if col == "*":
-                aggs.append(Agg("count", None, None))
+                aggs.append(Agg("count", None, None, name))
                 continue
             i = child.index(col, where)
             c = child.cols[i]
             if fn in ("sum", "avg") and c.type not in (INT, BIGINT):
                 raise BindError(f"{where}: {fn.upper()} requires an INT column, "
                                 f"{c.name} is {c.type}")
-            aggs.append(Agg(fn, i, c))
+            aggs.append(Agg(fn, i, c, name))
         self.spec = Spec(child, key_idx, aggs, where)
         self._setup_stream_need()
         return self.spec.out_schema

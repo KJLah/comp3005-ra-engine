@@ -1,5 +1,5 @@
 """Pipelined operators (Module 2, Sections 2.1-2.3 and 2.10):
-seqscan, filter, project, limit, union_all."""
+seqscan, filter, project, limit, union_all; and rename (Module 4)."""
 from __future__ import annotations
 
 from typing import Iterator, List, Optional
@@ -66,7 +66,9 @@ class SeqScan(Operator):
         return next(self.it, None)
 
     def _close(self) -> None:
-        self.it.close()
+        it = getattr(self, "it", None)      # None if open() failed before the scan
+        if it is not None:
+            it.close()
 
 
 @register("filter")
@@ -105,7 +107,9 @@ class Project(Operator):
         child = self.children[0].schema
         where = f"{self.path} (project)"
         self.idx = [child.index(name, where) for name in self.node["columns"]]
-        return Schema([child.cols[i] for i in self.idx], where)
+        names = self.node.get("as") or [None] * len(self.idx)     # Module 4
+        return Schema([child.cols[i] if n is None else child.cols[i].renamed(n)
+                       for i, n in zip(self.idx, names)], where)
 
     def _open(self, limit: int) -> None:
         self.children[0].open(limit)
@@ -115,6 +119,29 @@ class Project(Operator):
         if r is None:
             return None
         return tuple(r[i] for i in self.idx)
+
+@register("rename")
+class Rename(Operator):
+    """Module 4: gives every column the qualifier `to` (R.a and a both become
+    to.a). Pipelined, no I/O, tuples unchanged. This is what lets a table
+    appear twice in one plan (a self join) and a subquery be named."""
+
+    pipelined = True
+
+    def label(self) -> str:
+        return f"rename {self.node['to']}"
+
+    def _bind(self) -> Schema:
+        to = self.node["to"]
+        child = self.children[0].schema
+        return Schema([c.renamed(f"{to}.{c.short}") for c in child.cols],
+                      f"{self.path} (rename)")
+
+    def _open(self, limit: int) -> None:
+        self.children[0].open(limit)
+
+    def _next(self) -> Optional[Row]:
+        return self.children[0].next()
 
 
 @register("limit")
