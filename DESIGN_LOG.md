@@ -970,7 +970,7 @@ Verification:
   released the dataset and 25 queries. PostgreSQL/OpenStack results
   will be recorded when that validation is performed.
 
-  ### Final assignment checklist review
+### Final assignment checklist review
 
 Checked the implementation and submitted documents against the complete
 Project 2 overview. The review identified missing source-reference
@@ -978,7 +978,9 @@ sections, missing published checkpoint tags, an inaccurate BNL cache-hit
 explanation, and an outdated M3 integration paragraph.
 
 Documentation and checkpoint-tag status:
-[Record the changes actually completed.]
+Added two references with design explanations to each module's report
+or design document. Corrected the BNL cache-hit explanation and updated
+the M3 integration description. Published all five checkpoint tags.
 
 Official workload validation remains pending release of the instructor's
 dataset and queries.
