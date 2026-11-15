@@ -271,3 +271,23 @@ than proving that every possible plan has no untracked memory.
 Every sample plan in `plans/` (one per operator, plus a 7-operator
 pipeline) runs at B = 4 on both a 3000-row database and an empty one, and
 ends with no pinned frame and no temporary file (`tests/test_m2_checklist.py`).
+
+## References and connection to the design
+
+1. Graefe, G. “Volcano—An Extensible and Parallel Query Evaluation
+   System.” IEEE Transactions on Knowledge and Data Engineering, 1994.
+
+   This source helped me validate the iterator interface and the
+   distinction between pipelined and blocking operators. My operators
+   expose open, next, and close; filter and project pass tuples through,
+   while external sort performs blocking work before returning sorted
+   tuples.
+
+2. Shapiro, L. D. “Join Processing in Database Systems with Large Main
+   Memories.” ACM Transactions on Database Systems, 1986.
+
+   This source helped me understand the memory assumptions behind
+   partitioned hash joins. My implementation checks whether partitions
+   fit, repartitions overflowing partitions, and uses a bounded fallback
+   when skew prevents useful partitioning. The skew experiment tests
+   where the simple three-pass cost model stops explaining actual I/O.
