@@ -53,6 +53,31 @@ capacity, replacement-policy hit rates, and scan cost.
 Scan counters currently measure table-page accesses only. Catalog
 accesses use a separate four-frame pool, as documented in DESIGN_M1.md.
 
+## Module 3: SQL front end
+
+Module 3 parses SQL, resolves names, checks types and aggregation rules, and
+translates each query to a logical plan (JSON) in the canonical order of the
+Module 3 document. It uses a hand-written scanner and a recursive-descent
+parser, with no regular expressions or parser generators.
+
+```bash
+python3 -m pip install -e .          # adds the `sql` command (or: python3 -m sql)
+sql exec    --db m3db --file queries/setup.sql      # build the test catalog
+sql parse   --query "SELECT name FROM Emp" --explain
+sql compile --db m3db --file queries/case15_chain.sql           # explain tree
+sql compile --db m3db --file queries/case05_where_having.sql --json
+sql check   --db m3db --file queries/case03_ambiguous.sql       # exit 1
+```
+
+Errors use one format: `error: <category>: <message> at line L, column C`.
+`queries/` has one file per required case. The Module 3 tests are
+`tests/test_m3_*.py` (145 tests).
+
+- [GRAMMAR_SQL.md](GRAMMAR_SQL.md): EBNF, precedence and associativity, and
+  differences from the handout's sketch.
+- [DESIGN_M3.md](DESIGN_M3.md): where duplicates are removed, the scope and
+  resolution algorithm, the aggregate naming rule, the plan JSON.
+
 ## How to run
 
 ```bash

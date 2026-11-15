@@ -573,3 +573,180 @@ through the buffer pool.
   109 writes; exact 40% skew produced 117,892 rows with 366 reads and
   213 writes.
 
+---
+
+## 2026-11-13: Module 3 plan, starting point
+
+**Goal:** check main before building the SQL front end.
+
+**State:** main at 4118bc0, 292 tests pass. The instructor confirmed no logical
+plan schema or sample catalog will be published; names come from the Module 3
+examples and the Module 2 document's Section 2, and open points are decided in
+DESIGN_M3.md.
+
+**Found while planning:** the Bonus 1 condition parser, which the Module 2
+executor uses for every filter and join condition, rejected both `<>` and
+upper-case `AND` (`parse_condition("a <> 'x'")` failed on main). The first
+plan printed SQL conditions with upper-case keywords; that would have produced
+plans the executor cannot load. Conditions are now printed with lower-case
+`and`/`or`/`not`, and the Bonus 1 lexer reads `<>` as `!=` (step 6).
+
+---
+
+## 2026-11-13: Module 3 step 1, the SQL scanner
+
+**Goal:** a hand-written scanner for Section 1: case-insensitive keywords,
+case-sensitive identifiers, `''` escapes, signed integers, maximal munch for
+`<=`, `>=`, `<>`, `--` comments, several statements per file.
+
+**Decisions:**
+- Character classes are imported from the Bonus 1 lexer, so both front ends
+  agree on letters and digits.
+- A sign is part of a number only when a digit follows at once; there is no
+  arithmetic, so a lone `-` is a lexical error with a hint.
+- Aggregate names are keywords (GRAMMAR_SQL.md §4.8).
+- Tokens keep their source text and their value (keyword in upper case).
+
+**Verification:** 19 tests, including a check that `sql/` uses no regular
+expressions, `eval` or `exec`.
+
+---
+
+## 2026-11-13: Module 3 step 2, grammar and parser
+
+**Goal:** GRAMMAR_SQL.md and a recursive-descent parser with one method per
+rule, precedence and associativity enforced by the grammar's shape.
+
+**Decisions:**
+- condition -> and_cond -> not_cond -> atom gives NOT > AND > OR; each `{ }`
+  loop folds left, which also makes the set operators left associative at
+  one level.
+- Differences from the sketch, each documented in GRAMMAR_SQL.md §4: AS
+  optional on table aliases (the handout's own examples omit it), aggregates
+  allowed as condition operands (so HAVING COUNT(*) > 5 parses and an
+  aggregate in WHERE is an aggregate error, not a syntax error).
+- `printer.format_condition` prints a condition with the fewest parentheses
+  that keep its tree; a test parses every printed condition back to the same
+  tree.
+
+**AI was wrong:** one syntax-error test expected column 13 for the `FROM` in
+`SELECT count FROM R`; the token is at column 14. The parser was right, the
+test's hand-counted column was not.
+
+**Verification:** 27 tests.
+
+---
+
+## 2026-11-13: Module 3 step 3, logical plans
+
+**Goal:** plan node constructors with the handout's field names, an explain
+tree, and a validator for the checklist rules.
+
+**Decisions:**
+- Plans are plain dicts built by constructors, so key order (and printed JSON)
+  matches the handout.
+- `explain` prints one node per line with its op name, so union and union_all
+  differ visibly (§5.7).
+- `check_plan` rejects physical operator names, aggregate calls in
+  conditions, and unqualified names except output names created below the
+  node (aggregate outputs, select-list aliases). Condition strings are checked
+  by parsing them with the Module 3 condition parser.
+
+**Verification:** 11 tests.
+
+---
+
+## 2026-11-13: Module 3 step 4, scopes and name resolution
+
+**Goal:** Section 3: scope from FROM, duplicate aliases, qualified and
+unqualified lookup, SELECT * expansion, ORDER BY aliases first, subqueries.
+
+**Decisions:**
+- Resolution happens while translating (`translate.py` calls `resolve.py`),
+  so the translator was written in this step; steps 5 and 6 test its rules
+  and its plan shapes.
+- The scope grows as FROM is read: ON sees the tables joined so far.
+- A subquery is translated with its own empty scope; its output short names
+  become the alias's columns, and two equal short names are a schema error.
+- ORDER BY on a column that is not selected puts the sort directly below the
+  project (DESIGN_M3.md §6).
+
+**Verification:** 25 tests, covering required cases 1, 2, 3, 9, 11, 12.
+
+---
+
+## 2026-11-13: Module 3 step 5, aggregation and type rules
+
+**Goal:** Sections 3.1 and 3.2.
+
+**Decisions:**
+- HAVING reuses an aggregate the select list already computes; one only in
+  HAVING gets the default name.
+- Default aggregate names are Module 2's (`count_star`, `avg_Emp_salary`).
+- AVG is REAL and compares with INT (both numbers), as in Module 2.
+
+**AI was wrong:** the first ORDER BY check for aggregating queries tested
+`self.aggs is not None and self.keys_known()`, a roundabout condition that
+depended on when HAVING aggregates were added. Replaced with a flag set once
+the block is known to be aggregating.
+
+**Verification:** 21 tests, covering required cases 6, 7, 10, 13, 14.
+
+---
+
+## 2026-11-13: Module 3 step 6, translation
+
+**Goal:** canonical plan order, every Section 5 example as exact JSON, bag
+semantics, required cases 4, 5, 8 and 15.
+
+**Decisions:**
+- `distinct` is emitted only for SELECT DISTINCT, and dropped above a
+  group_by when every grouping column is selected (DESIGN_M3.md §1).
+- The Bonus 1 lexer now reads `<>` as `!=`; the parse tree keeps `!=`, so
+  nothing else in Bonus 1 or Module 2 changed. All 292 earlier tests still
+  pass.
+- A test-only `to_physical` stands in for Module 4 and runs translated plans
+  in the Module 2 executor: COUNT(*) on an empty table gives one row,
+  duplicates survive projection, UNION and UNION ALL give different results.
+
+**Verification:** 27 tests; every Section 5 example matches.
+
+---
+
+## 2026-11-13: Module 3 step 7, command line and statements
+
+**Goal:** `sql parse`, `sql compile`, `sql check` (Section 8), one error
+format (Section 6), CREATE TABLE and INSERT.
+
+**Decisions:**
+- compile and check never change the database; CREATE TABLE goes into an
+  in-memory overlay so later statements can use it. `sql exec` applies CREATE
+  and INSERT through Module 1 (used by `queries/setup.sql`).
+- compile --json prints one plan object for one query, an array for several.
+- check prints the error on stdout; the other commands use stderr.
+- `queries/` holds one SQL file per required case; a test checks each one.
+
+**AI was wrong (twice in one test, once in a message):**
+- The step 1 banned-tools test searched for the text `exec(` and failed on
+  the new `cmd_exec(` function.
+- The first fix inverted the check, so it would have passed a real bare
+  `eval(...)` and failed only on longer names. Caught on re-reading the
+  assertion; now a call counts only when no letter, digit, `_` or `.` comes
+  before it.
+- A type error printed the literal `'30'` as `VARCHAR(2)`. Literals now print
+  as plain `VARCHAR`.
+
+**Verification:** 15 tests.
+
+---
+
+## 2026-11-13: Module 3 step 8, documents
+
+**Goal:** DESIGN_M3.md (bag semantics first, scope algorithm, aggregate
+naming), GRAMMAR_SQL.md, README section.
+
+**Verification:**
+- Full-suite command: `python3 -m unittest discover -s tests -v`
+- Result: all 437 tests pass (292 from Bonus 1, Module 1 and Module 2, 145
+  from Module 3), Python 3.13.
+- `sh check_m3.sh` reports every Module 3 file present.

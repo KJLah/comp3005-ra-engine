@@ -159,9 +159,8 @@ class Lexer:
         elif ch == "'":
             self.scan_string(start)
         elif ch in ("<", ">"):
-            # maximal munch: '<=' / '>=' are single tokens
             self.advance()
-            if self.peek() == "=":
+            if self.peek() == "=" or (ch == "<" and self.peek() == ">"):
                 self.advance()
             self.emit(OP, start)
         elif ch == "!":
