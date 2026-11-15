@@ -333,6 +333,10 @@ class Estimator:
         for lo, hi, cnt, nd in cs.hist:
             if (_less(hi, v) if below else _less(v, lo)):
                 total += cnt
-            elif _less(lo, v) and _less(v, hi):        # v strictly inside
+            elif (
+                _less(lo, hi)
+                and not _less(v, lo)
+                and not _less(hi, v)
+            ):
                 total += cnt * part(lo, hi)
         return total / ts.n_tuples

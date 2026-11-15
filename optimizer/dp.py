@@ -132,28 +132,52 @@ class JoinDP:
 
     def run(self) -> Entry:
         n = len(self.rels)
-        allow_cross = not self.connected()
-        for i, r in enumerate(self.rels):
-            S = frozenset([i])
-            self.best[S] = Entry(r.cost, r.rows, r.pages)
-        for k in range(2, n + 1):
-            for combo in combinations(range(n), k):
-                S = frozenset(combo)
-                cands = []
-                for r in combo:
-                    outer = S - {r}
-                    if outer not in self.best:
+        full = frozenset(range(n))
+
+        # Retry with Cartesian combinations if the normal restriction
+        # prevents construction of a complete plan.
+        for allow_cross in (not self.connected(), True):
+            self.best.clear()
+            self.cands.clear()
+            self.skipped.clear()
+
+            for i, r in enumerate(self.rels):
+                S = frozenset([i])
+                self.best[S] = Entry(r.cost, r.rows, r.pages)
+
+            for k in range(2, n + 1):
+                for combo in combinations(range(n), k):
+                    S = frozenset(combo)
+                    cands = []
+
+                    for r in combo:
+                        outer = S - {r}
+                        if outer not in self.best:
+                            continue
+
+                        links = self.linking(outer, r)
+                        if not links and not allow_cross:
+                            continue
+
+                        cands += self._candidates(
+                            S, outer, r, links
+                        )
+
+                    if not cands:
+                        self.skipped.append(S)
                         continue
-                    links = self.linking(outer, r)
-                    if not links and not allow_cross:
-                        continue
-                    cands += self._candidates(S, outer, r, links)
-                if not cands:
-                    self.skipped.append(S)
-                    continue
-                self.cands[S] = cands
-                self.best[S] = min(cands, key=lambda e: e.cost)
-        return self.best[frozenset(range(n))]
+
+                    self.cands[S] = cands
+                    self.best[S] = min(
+                        cands, key=lambda e: e.cost
+                    )
+
+            if full in self.best:
+                return self.best[full]
+
+        raise ValueError(
+            "Join enumeration could not build a complete plan"
+        )
 
     def _candidates(self, S, outer, r, links) -> List[Entry]:
         o, rel = self.best[outer], self.rels[r]

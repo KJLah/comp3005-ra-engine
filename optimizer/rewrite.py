@@ -170,8 +170,11 @@ class Rewriter:
         elif op == "group_by" and 5 in r:
             out = self.cols(child)
             keys = out[:len(child["keys"])]
-            if all(C.match(ref, out) is not None and out[C.match(ref, out)] in keys
-                   for ref in C.refs(cond)):
+            if keys and all(
+                C.match(ref, out) is not None
+                and out[C.match(ref, out)] in keys
+                for ref in C.refs(cond)
+            ):
                 self.fired.add(5)
                 return _with(child, child=self.sink(cond, child["child"]))
         elif op == "select":
