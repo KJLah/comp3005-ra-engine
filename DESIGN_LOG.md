@@ -779,3 +779,88 @@ naming), GRAMMAR_SQL.md, README section.
 - Actual result: [record your result]
 - Completeness command: sh check_m3.sh
 - Actual result: [record your result]
+
+---
+
+## 2026-11-15: Module 4 step 1, executor additions
+
+**Goal:** every Module 3 logical plan has a Module 2 physical equivalent.
+
+**Decisions:**
+- Four optional plan forms (DESIGN_M4 §1): `rename`, `project` with `as`,
+  `nested_loop_join` without a condition (cross), and a third element in an
+  aggregate naming its output column. All optional, so every Module 2 plan
+  is still valid and the 441 earlier tests are unchanged.
+- No dataset or workload will be published (instructor's email); we build
+  our own and state every assumption in one line in DESIGN_M4 §0.
+
+**Verification:** 10 tests (`tests/test_m4_executor.py`), including a self
+join through two renames.
+
+---
+
+## 2026-11-15: Module 4 steps 2 to 9, the optimizer
+
+**Goal:** statistics, estimates, rewrites, cost model, Selinger DP,
+planner, `opt` command, dataset and twenty queries.
+
+**Decisions:**
+- Column statistics in a `T.stats` heap file, one JSON record per column,
+  split into parts when a histogram does not fit in 4084 bytes; the catalog
+  record keeps only table-level numbers.
+- ANALYZE sorts each column with an ordinary Module 2 plan, so the external
+  sort is reused unchanged.
+- Join cost: an input that is a pipeline over a base table is not charged
+  twice; any other input is charged once. This reproduces §5.1 exactly
+  (110, 410, 530).
+- The dataset hides two correlations on purpose (city → province, city →
+  area) and skews the cities.
+
+**AI was wrong (found and fixed):**
+- The estimator memoised on `id(node)`. Short-lived nodes were garbage
+  collected and a new node reused an old id, so a test got another node's
+  estimate (1000 rows for a filter that keeps none). The memo now keeps the
+  node alive and checks identity.
+- §5.1's alternative row says 410 + 40 + 1×100 = 550. 40 pages at
+  B − 2 = 30 frames are 2 blocks, so it is 650. Our table prints 650 and the
+  design document says why (A16).
+- The rule ablation found a real bug: with rule 2 off, rule 3's extension
+  moved a one-sided select into the join condition, and the DP dropped
+  predicates that used a single relation, so q17 lost its WHERE clause and
+  returned too many rows. Fixed twice over: rule 3 now merges only two-sided
+  predicates, and the planner turns one-sided join conjuncts into filters.
+  measure_m4.py now checks every plan's answer, ablations included.
+- Module 2 bug found by the planner: a sort above a nested loop join took
+  the frame the join needed to reopen its inner, and the next rescan failed
+  with a budget error at B = 8. The join now keeps that frame reserved. A
+  seqscan whose open failed also crashed in close; fixed.
+
+**Verification:** 61 more tests in `tests/test_m4_*.py` (71 for Module 4
+with step 1's). The §2 example, the §3
+rewrite and the §5.1 table reproduce; all twenty plans run at B = 4, 8 and
+32 with the unoptimized plan's answer.
+
+---
+
+## 2026-11-15: Module 4 step 10, measurements and documents
+
+**Goal:** REPORT_M4.md (q-error, optimized against unoptimized, rule
+ablation, correlation failure), DESIGN_M4.md, the 4-relation DP table.
+
+**Findings:**
+- Median q-error 1.00; the worst real errors are the 0.1 default for a
+  self-join ordering predicate (7.0) and the correlated predicates (4.9).
+- Optimization pays 3× on average where there is a join or a GROUP BY, up
+  to 14× (q10), and nothing on single-table queries (no indexes).
+- Rule 2 and rule 6 carry almost all of the gain. Rules 3, 4, 5 save no
+  I/O on this data, and the report says why for each.
+- Correlation: q17 is estimated at 83 rows for 407, and at B = 4 the
+  optimizer picks a nested loop join that costs 452 page I/Os where a hash
+  join costs 271. A column-group ndv(city, area) would have prevented it.
+- Improvement 3 (ndv after a filter) took q12's group estimate from 40 to
+  9 (actual 9).
+
+**Verification:**
+- Full-suite command: `python3 -m unittest discover -s tests`
+- Result: all tests pass, Python 3.13.
+- `python3 measure_m4.py` regenerates every table in REPORT_M4.md.
