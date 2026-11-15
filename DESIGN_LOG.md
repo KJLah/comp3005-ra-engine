@@ -966,9 +966,9 @@ Verification:
 - Integration regression suite: 13 tests passed.
 - Full suite: 556 tests passed.
 - Rehearsal comparison: 25 of 25 answers matched SQLite.
-- Official demo validation is pending because the instructor has not
-  released the dataset and 25 queries. PostgreSQL/OpenStack results
-  will be recorded when that validation is performed.
+- Updated following the instructor's clarification: our own dataset and
+  queries are accepted, and all 25 answers matched SQLite.
+- PostgreSQL/OpenStack validation has not yet been recorded.
 
 ### Final assignment checklist review
 
@@ -982,8 +982,8 @@ Added two references with design explanations to each module's report
 or design document. Corrected the BNL cache-hit explanation and updated
 the M3 integration description. Published all five checkpoint tags.
 
-Official workload validation remains pending release of the instructor's
-dataset and queries.
+Status updated following the instructor's clarification: no official
+dataset or queries will be released; our own workload is accepted.
 
 ### Local rehearsal at B=4
 
@@ -996,7 +996,8 @@ All completed successfully. SQLite reported zero query errors, and
 the typed comparator confirmed 25 of 25 answers matched.
 
 Results are saved in results/demo_check/.
-Official workload and PostgreSQL/OpenStack validation remain pending.
+Our own workload is accepted under the instructor's clarification.
+PostgreSQL/OpenStack validation has not yet been recorded.
 
 ### Instructor clarification on submission data
 
