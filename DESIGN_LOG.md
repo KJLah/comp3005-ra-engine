@@ -997,3 +997,13 @@ the typed comparator confirmed 25 of 25 answers matched.
 
 Results are saved in results/demo_check/.
 Official workload and PostgreSQL/OpenStack validation remain pending.
+
+### Instructor clarification on submission data
+
+The instructor confirmed that no dataset or queries will be released
+and approved using our own dataset and queries. The submitted rehearsal
+uses four tables and 25 queries, reporting result row count, page I/O,
+wall time, and estimated against actual rows at the root.
+
+All 25 answers matched SQLite, and the full suite passed 556 tests.
+There is no instructor-provided workload to wait for.
