@@ -57,7 +57,7 @@ Worst nodes:
 
 **Reading it.** The median is 1.00: scans are exact (their rows are
 statistics), and on single columns the histograms are good. q01 is the skew
-test: `city = 'Toronto'` is estimated at 250 against 223 actual, where
+test: `city = 'Toronto'` estimated at 223 against 223 actual, where
 1/ndv would have said 100 (q-error 2.2). The worst nodes are the interesting
 part, and they have three different causes:
 
