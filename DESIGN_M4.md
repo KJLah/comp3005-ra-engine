@@ -24,7 +24,7 @@ explain the design.
 | A7 | Inside a bucket and between min and max, values are treated as continuous, so `age > 60` over 20..70 is 10/50 exactly as in §2's example. |
 | A8 | VARCHAR ranges are interpolated by reading the first 8 characters as a base-256 number (improvement 1). |
 | A9 | Histogram cuts never split equal values, so a bucket can be larger than n/k and there can be fewer than k buckets. |
-| A10 | ANALYZE reads the table once for n_tuples, n_pages and width, and sorts each column with the Module 2 external sort (a sort-over-project-over-seqscan plan), which reads the table once more per column. |
+| A10 | ANALYZE scans the original table once, counting live tuples and record bytes while copying live records to temporary storage. Each column is then sorted from that temporary copy using the Module 2 external sort. Temporary storage is removed on completion or failure. |
 | A11 | Column statistics live in a heap file `T.stats` (a catalog record is limited to 4084 bytes); the catalog's statistics field holds the table-level numbers and the file name. |
 | A12 | Rule 4 does not push a select between a rename and its scan ("rename e (scan Emp)" is one access path); this is also what the §3 example shows. |
 | A13 | Rule 3 also adds a two-sided predicate that sits directly on a join to that join's condition (extension); it still converts a cross only for an equality, as §3 says. |
@@ -78,12 +78,12 @@ Emp.stats, a heap file, one record per column (JSON):
   (long VARCHAR bounds, many buckets) is split into records with the same
   `col` and `part` 0, 1, …; the reader joins them in order. Tested with
   100 buckets of 150-character strings.
-- **ANALYZE** (`opt analyze`, `optimizer/stats.py`): one scan counts live
-  tuples and the bytes of every record (width = average); n_pages is the
-  number of directory entries. Then, per column, a Module 2 plan
-  `sort(project(seqscan))` streams the column in order through the external
-  sort, and the histogram is cut from that stream with only the current
-  bucket in memory. Exact, no sampling.
+- **ANALYZE** (`opt analyze`, `optimizer/stats.py`): one scan of the
+  original table counts live tuples and record bytes while materializing
+  live records in temporary storage. n_pages counts the original table's
+  directory entries. Per-column statistics use Module 2 external sort
+  over the temporary copy. The original table is not rescanned for each
+  column, and the full table is never collected in a Python list.
 - **Equi-depth histogram**: target size ceil(n/k); a bucket closes once it
   holds at least that many tuples and the next value is different. The
   per-bucket ndv therefore add up to the column's ndv, and every value is in
@@ -204,6 +204,9 @@ for k = 2 .. n, every subset S of size k, every r in S (r is the inner):
     candidates: BNL always; SMJ and hash when a link is a cross-side equality
 best[S] = cheapest candidate
 ```
+If the first enumeration cannot construct a complete plan, enumeration
+is retried with Cartesian combinations allowed. This handles predicates
+that require three or more relations before they can be evaluated.
 
 Conjuncts that use one relation only (from a JOIN ON) are not join
 predicates; see A25. Sizes come from §2: rows(S) is the product of the relations' rows and the

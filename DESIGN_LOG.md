@@ -864,3 +864,35 @@ ablation, correlation failure), DESIGN_M4.md, the 4-relation DP table.
 - Full-suite command: `python3 -m unittest discover -s tests`
 - Result: all tests pass, Python 3.13.
 - `python3 measure_m4.py` regenerates every table in REPORT_M4.md.
+
+### Module 4 review corrections
+
+The AI-assisted implementation missed several edge cases. Histogram
+interpolation excluded bucket endpoints, and selection pushdown could
+change the result of an empty-key aggregate. Both conditions were
+corrected.
+
+DP enumeration could reject every starting pair for a predicate requiring
+three relations. It now retries with Cartesian combinations allowed when
+the first enumeration cannot construct a complete plan.
+
+ANALYZE previously rescanned the original table for every column. It now
+copies live records during one source-table scan and externally sorts
+columns from temporary storage.
+
+Statistics splitting previously allowed metadata plus the first bucket
+to exceed the record limit. Split records now store metadata separately
+and check each encoded record's size.
+
+The endpoint correction changed q05's estimated rows from 350 to 476,
+against 451 actual rows. Generated measurements and report text were
+refreshed.
+
+Verification:
+- Full suite: 517 tests passed, including all five Module 4
+  review regression tests.
+- python3 measure_m4.py completed successfully.
+- Regenerated estimation, optimization, rule-ablation, correlation,
+  algorithm-selection and four-relation DP results.
+- After the histogram endpoint correction, q05's median and worst
+  q-error are 1.06.
