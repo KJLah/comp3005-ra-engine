@@ -1,0 +1,23 @@
+{
+  "op": "except",
+  "left": {
+    "op": "project",
+    "columns": [
+      "Emp.eid"
+    ],
+    "child": {
+      "op": "seqscan",
+      "table": "Emp"
+    }
+  },
+  "right": {
+    "op": "project",
+    "columns": [
+      "Works.eid"
+    ],
+    "child": {
+      "op": "seqscan",
+      "table": "Works"
+    }
+  }
+}

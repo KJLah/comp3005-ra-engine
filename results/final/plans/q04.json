@@ -1,0 +1,15 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.name",
+    "Emp.city"
+  ],
+  "child": {
+    "op": "filter",
+    "condition": "Emp.city < 'L'",
+    "child": {
+      "op": "seqscan",
+      "table": "Emp"
+    }
+  }
+}

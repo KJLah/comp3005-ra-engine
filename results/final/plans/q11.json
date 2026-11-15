@@ -1,0 +1,34 @@
+{
+  "op": "filter",
+  "condition": "n > 55",
+  "child": {
+    "op": "group_by",
+    "mode": "sort",
+    "keys": [
+      "Emp.did"
+    ],
+    "aggregates": [
+      [
+        "count",
+        "*",
+        "n"
+      ],
+      [
+        "avg",
+        "Emp.salary",
+        "pay"
+      ]
+    ],
+    "child": {
+      "op": "project",
+      "columns": [
+        "Emp.salary",
+        "Emp.did"
+      ],
+      "child": {
+        "op": "seqscan",
+        "table": "Emp"
+      }
+    }
+  }
+}
