@@ -4,3 +4,8 @@ data/generated/
 .DS_Store
 *.egg-info/
 data/m4/
+data/final/
+data/finaldb/
+pg/
+ref/
+

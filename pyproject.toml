@@ -12,6 +12,7 @@ storage = "storage.cli:main"
 exec = "execution.cli:main"
 sql = "sql.cli:main"
 opt = "optimizer.cli:main"
+radb = "shell.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["ra_engine*", "storage*", "execution*", "sql*", "optimizer*"]
+include = ["ra_engine*", "storage*", "execution*", "sql*", "optimizer*", "shell*"]
