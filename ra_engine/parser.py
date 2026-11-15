@@ -279,7 +279,7 @@ class Parser:
         if self.at(L.OP):
             raise ParseError("comparisons cannot be chained; use 'and', "
                              "e.g. a < b and b < c", self.peek().pos)
-        return Compare(op.text, left, right, op.pos)
+        return Compare("!=" if op.text == "<>" else op.text, left, right, op.pos)
 
     # operand = NUMBER | STRING | attr_ref
     def operand(self):
