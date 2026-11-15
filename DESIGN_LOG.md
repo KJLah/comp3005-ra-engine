@@ -940,6 +940,6 @@ for an unseen workload; ARCHITECTURE.md.
 
 **Verification:**
 - Full-suite command: `python3 -m unittest discover -s tests`
-- Result: 538 tests pass (26 new in `tests/test_integ_*.py`), Python 3.13.
+- Result: 543 tests pass (26 new in `tests/test_integ_*.py`), Python 3.13.
 - `python3 run_workload.py --db data/finaldb --queries
   queries/final/workload.sql --repeat 3` writes results/final.
