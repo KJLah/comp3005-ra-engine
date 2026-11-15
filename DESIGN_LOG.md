@@ -943,3 +943,37 @@ for an unseen workload; ARCHITECTURE.md.
 - Result: 543 tests pass (26 new in `tests/test_integ_*.py`), Python 3.13.
 - `python3 run_workload.py --db data/finaldb --queries
   queries/final/workload.sql --repeat 3` writes results/final.
+
+### Integration review corrections
+
+The AI-assisted integration implementation passed its original tests,
+but additional review found gaps in correctness checking and reporting.
+
+Already corrected before this review:
+- Comments before CREATE statements are handled by the shell tokenizer.
+- PostgreSQL export quotes CSV fields, preserving empty strings.
+- PostgreSQL scripts stop on SQL errors.
+- SQLite query failures produce a nonzero command exit status.
+
+Further corrections:
+- Result comparison now uses output-column types. VARCHAR and integer
+  values compare exactly; only REAL uses four-decimal display rounding.
+  The previous float conversion could hide different strings such as
+  "001" and "1", and different large integers.
+- Comparison checks the successful query list in summary.csv and requires
+  all expected result files. Empty or incomplete workloads cannot pass.
+- Missing CSV headers and incorrect field counts are rejected.
+- Output schemas are saved for each query.
+- Reports record the actual frame budget after SET frames.
+- Printing rows is excluded from execution timing.
+- The integrated shell's supported minimum is B=4, matching the grading
+  minimum. Standalone module tools retain their existing budgets.
+- Added 13 integration regression tests.
+
+Verification:
+- Reviewer tested the proposed replacements in an isolated copy:
+  556 tests passed.
+- Local regression result: [enter your actual result].
+- Local full-suite result: [enter your actual result].
+- Rehearsal comparison: [enter your actual result].
+- PostgreSQL/OpenStack verification: [record result when performed].
