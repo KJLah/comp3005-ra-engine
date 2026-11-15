@@ -20,6 +20,7 @@ Written to --out:
     summary.csv     the same numbers, one row per query
     rows/<q>.csv    each query's result, header first, for compare with
                     PostgreSQL (pg_tools.py compare)
+    schemas/<q>.json each query's output types for typed comparison
     plans/<q>.json  each query's physical plan
 """
 from __future__ import annotations
@@ -34,10 +35,10 @@ from typing import List, Tuple
 
 from execution.schema import REAL
 from shell.cli import render
-from shell.session import DEFAULT_FRAMES, Session
+from shell.session import DEFAULT_FRAMES, MIN_FRAMES, Session
 from shell.split import classify, split_statements, words
 
-FIELDS = ["query", "rows", "page_reads", "page_writes", "page_io", "wall_ms",
+FIELDS = ["query", "frames", "rows", "page_reads", "page_writes", "page_io", "wall_ms",
           "compile_ms", "plan_ms", "exec_ms", "est_rows", "actual_rows", "q_error", "error"]
 
 
@@ -90,8 +91,13 @@ def main(argv=None) -> int:
     ap.add_argument("--repeat", type=int, default=1, help="runs per query; wall time is the median")
     ap.add_argument("--out", default="results/final")
     a = ap.parse_args(argv)
+    if a.frames < MIN_FRAMES:
+        ap.error(f"--frames must be at least {MIN_FRAMES}")
+    if a.repeat < 1:
+        ap.error("--repeat must be at least 1")
     os.makedirs(os.path.join(a.out, "rows"), exist_ok=True)
     os.makedirs(os.path.join(a.out, "plans"), exist_ok=True)
+    os.makedirs(os.path.join(a.out, "schemas"), exist_ok=True)
 
     session = Session(a.db, a.frames, out=None, print_rows=False)
     lines = []
@@ -108,12 +114,12 @@ def main(argv=None) -> int:
         except Exception as e:
             msg = render(e)
             print(f"{name}: {msg}", file=sys.stderr)
-            lines.append({"query": name, "error": msg})
+            lines.append({"query": name, "frames": session.frames, "error": msg})
             continue
         r = runs[0]
         wall = statistics.median(x.wall_ms for x in runs)
         lines.append({
-            "query": name, "rows": len(r.rows), "page_reads": r.page_reads,
+            "query": name, "frames": session.frames, "rows": len(r.rows), "page_reads": r.page_reads,
             "page_writes": r.page_writes, "page_io": r.io, "wall_ms": round(wall, 1),
             "compile_ms": round(statistics.median(x.compile_ms for x in runs), 1),
             "plan_ms": round(statistics.median(x.plan_ms for x in runs), 1),
@@ -128,7 +134,10 @@ def main(argv=None) -> int:
                 w.writerow([cell(v, t) for v, t in zip(row, r.types)])
         with open(os.path.join(a.out, "plans", f"{name}.json"), "w", encoding="utf-8") as f:
             json.dump(r.plan, f, indent=2)
-        print(f"{name}: {len(r.rows)} rows, I/O {r.io}, {wall:.1f} ms, "
+        with open(os.path.join(a.out, "schemas", f"{name}.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump(r.types, f)
+        print(f"{name}: B={session.frames}, {len(r.rows)} rows, I/O {r.io}, {wall:.1f} ms, "
               f"est {r.est_rows:.0f} vs actual {r.actual_rows} (q-error {r.q_error:.2f})")
 
     with open(os.path.join(a.out, "summary.csv"), "w", newline="", encoding="utf-8") as f:
@@ -137,20 +146,20 @@ def main(argv=None) -> int:
         for l in lines:
             w.writerow(l)
     with open(os.path.join(a.out, "summary.md"), "w", encoding="utf-8") as f:
-        f.write(f"Database `{a.db}`, B = {a.frames} frames, wall time is the median of "
+        f.write(f"Database `{a.db}`, initial B = {a.frames} frames, wall time is the median of "
                 f"{max(1, a.repeat)} run(s).\n\n")
-        f.write("| query | rows | page I/O (reads + writes) | wall ms | est rows | actual rows "
-                "| q-error |\n|---|---:|---:|---:|---:|---:|---:|\n")
+        f.write("| query | B | rows | page I/O (reads + writes) | wall ms | est rows | actual rows "
+                "| q-error |\n|---|---:|---:|---:|---:|---:|---:|---:|\n")
         for l in lines:
             if l.get("error"):
-                f.write(f"| {l['query']} | error: {l['error']} | | | | | |\n")
+                f.write(f"| {l['query']} | {l['frames']} | error: {l['error']} | | | | | |\n")
             else:
-                f.write(f"| {l['query']} | {l['rows']} | {l['page_io']} "
+                f.write(f"| {l['query']} | {l['frames']} | {l['rows']} | {l['page_io']} "
                         f"({l['page_reads']} + {l['page_writes']}) | {l['wall_ms']} | "
                         f"{l['est_rows']:g} | {l['actual_rows']} | {l['q_error']} |\n")
     failed = sum(1 for l in lines if l.get("error"))
     print(f"{len(lines)} queries, {failed} failed; report in {a.out}/summary.md")
-    return 1 if failed else 0
+    return 1 if failed or not lines else 0
 
 
 if __name__ == "__main__":

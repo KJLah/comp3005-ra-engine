@@ -40,6 +40,7 @@ from storage.record import Column, encode
 from .split import Command, ShellError, classify, split_statements
 
 DEFAULT_FRAMES = 32
+MIN_FRAMES = 4
 CATALOG_FRAMES = 16
 
 
@@ -80,6 +81,8 @@ def _ms(t0: float) -> float:
 class Session:
     def __init__(self, db: str, frames: int = DEFAULT_FRAMES, out: Optional[TextIO] = None,
                  print_rows: bool = True):
+        if frames < MIN_FRAMES:
+            raise ShellError(f"frames must be at least {MIN_FRAMES}")
         self.db = db
         self.frames = frames
         self.out = out
@@ -184,14 +187,12 @@ class Session:
         pr = PlanRun(self.db, json.dumps(phys), self.frames)
         types = pr.schema.types()
         names = pr.schema.names()
-        rows = []
+        rows = list(pr.rows())
+        exec_ms = _ms(t0)
         if self.print_rows:
             self.say(" | ".join(names))
-        for r in pr.rows():
-            rows.append(r)
-            if self.print_rows:
+            for r in rows:
                 self.say(" | ".join(format_value(v, t) for v, t in zip(r, types)))
-        exec_ms = _ms(t0)
         t = pr.totals()
         res = QueryResult(names, types, rows, est, t["tuples_out"], t["page_reads"],
                           t["page_writes"], t["comparisons"], compile_ms, plan_ms,
@@ -272,8 +273,8 @@ class Session:
     def set(self, name: str, value: str) -> None:
         if name != "frames":
             raise ShellError(f"unknown setting '{name}' (only frames)")
-        if not value.isdigit() or int(value) < 3:
-            raise ShellError(f"frames must be a whole number of at least 3, got {value!r}")
+        if not value.isdigit() or int(value) < MIN_FRAMES:
+            raise ShellError(f"frames must be a whole number of at least {MIN_FRAMES}, got {value!r}")
         self.frames = int(value)
         self.say(f"frames = {self.frames}")
 
@@ -342,7 +343,7 @@ Statements end with ';' and may span lines.
   EXPLAIN SELECT ...             the chosen physical plan, estimates and costs
   EXPLAIN ANALYZE SELECT ...     run it; estimated against actual rows per node
   ANALYZE [t, ...]               compute statistics (all tables when none named)
-  SET frames = n                 the memory budget B (at least 3)
+  SET frames = n                 the memory budget B (at least 4)
   LOAD t FROM 'file.csv' [HEADER]  bulk load a CSV file into an existing table
   \\d [t]                         list tables, or describe one
   \\? help    \\q quit"""

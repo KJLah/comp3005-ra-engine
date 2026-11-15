@@ -105,11 +105,11 @@ class Session_(Base):
         self.assertIn("(3 rows; est_rows=", text)
 
     def test_set_frames_reaches_the_plan(self):
-        self.s.execute("SET frames = 3")
-        self.assertEqual(self.s.frames, 3)
+        self.s.execute("SET frames = 4")
+        self.assertEqual(self.s.frames, 4)
         r = self.s.execute("SELECT name FROM Emp ORDER BY age DESC")
         self.assertEqual([x[0] for x in r.rows], ["Ed", "Cy", "Bob", "Ann", "Di"])
-        for bad in ("SET frames = 2", "SET frames = x", "SET color = 3"):
+        for bad in ("SET frames = 2", "SET frames = 3", "SET frames = x", "SET color = 3"):
             with self.assertRaises(ShellError):
                 self.s.execute(bad)
 
