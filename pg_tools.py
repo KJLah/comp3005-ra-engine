@@ -100,25 +100,37 @@ def cmd_export(a) -> None:
     print(f"wrote {a.out}/schema.sql, load.sql and run.sh")
 
 
-def cmd_sqlite(a) -> None:
+def cmd_sqlite(a) -> int:
     con = sqlite3.connect(":memory:")
+
     for info, rows in _tables(a.db):
         con.execute(_ddl(info, collate=False))
         marks = ",".join("?" * len(info.columns))
-        con.executemany(f"INSERT INTO {info.name.lower()} VALUES ({marks})", rows)
+        con.executemany(
+            f"INSERT INTO {info.name.lower()} VALUES ({marks})",
+            rows,
+        )
+
     os.makedirs(os.path.join(a.out, "rows"), exist_ok=True)
+    failed = 0
+
     for name, text in _queries(a.queries):
         try:
             cur = con.execute(text.strip().rstrip(";"))
         except sqlite3.Error as e:
             print(f"{name}: sqlite error: {e}")
+            failed += 1
             continue
-        with open(os.path.join(a.out, "rows", f"{name}.csv"), "w", newline="",
-                  encoding="utf-8") as f:
+
+        path = os.path.join(a.out, "rows", f"{name}.csv")
+        with open(path, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow([d[0] for d in cur.description])
             w.writerows(cur.fetchall())
-    print(f"wrote {a.out}/rows")
+
+    con.close()
+    print(f"wrote {a.out}/rows; {failed} query error(s)")
+    return 1 if failed else 0
 
 
 def _norm(v: str) -> str:
@@ -177,7 +189,7 @@ def main(argv=None) -> int:
     if a.cmd == "export":
         cmd_export(a)
     elif a.cmd == "sqlite":
-        cmd_sqlite(a)
+        return cmd_sqlite(a)
     else:
         return cmd_compare(a)
     return 0
