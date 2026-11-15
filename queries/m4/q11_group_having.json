@@ -1,0 +1,34 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.did",
+    "n",
+    "pay"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "n > 55",
+    "child": {
+      "op": "group_by",
+      "keys": [
+        "Emp.did"
+      ],
+      "aggregates": [
+        [
+          "count",
+          "*",
+          "n"
+        ],
+        [
+          "avg",
+          "Emp.salary",
+          "pay"
+        ]
+      ],
+      "child": {
+        "op": "scan",
+        "table": "Emp"
+      }
+    }
+  }
+}

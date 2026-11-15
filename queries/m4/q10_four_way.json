@@ -1,0 +1,56 @@
+{
+  "op": "project",
+  "columns": [
+    "e.name",
+    "d.dname",
+    "p.pname"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "d.budget < 50000 and w.hours > 30",
+    "child": {
+      "op": "join",
+      "condition": "e.did = d.did",
+      "left": {
+        "op": "join",
+        "condition": "w.pid = p.pid",
+        "left": {
+          "op": "join",
+          "condition": "e.eid = w.eid",
+          "left": {
+            "op": "rename",
+            "to": "e",
+            "child": {
+              "op": "scan",
+              "table": "Emp"
+            }
+          },
+          "right": {
+            "op": "rename",
+            "to": "w",
+            "child": {
+              "op": "scan",
+              "table": "Works"
+            }
+          }
+        },
+        "right": {
+          "op": "rename",
+          "to": "p",
+          "child": {
+            "op": "scan",
+            "table": "Proj"
+          }
+        }
+      },
+      "right": {
+        "op": "rename",
+        "to": "d",
+        "child": {
+          "op": "scan",
+          "table": "Dept"
+        }
+      }
+    }
+  }
+}

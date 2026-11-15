@@ -1,0 +1,15 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.name",
+    "Emp.city"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "Emp.city < 'L'",
+    "child": {
+      "op": "scan",
+      "table": "Emp"
+    }
+  }
+}

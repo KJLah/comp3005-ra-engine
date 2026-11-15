@@ -1,0 +1,14 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.name"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "Emp.did = 7 and Emp.age > 60",
+    "child": {
+      "op": "scan",
+      "table": "Emp"
+    }
+  }
+}

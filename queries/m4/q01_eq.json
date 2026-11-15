@@ -1,0 +1,15 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.name",
+    "Emp.salary"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "Emp.city = 'Toronto'",
+    "child": {
+      "op": "scan",
+      "table": "Emp"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "op": "project",
+  "columns": [
+    "a.dname",
+    "b.dname"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "a.did < b.did",
+    "child": {
+      "op": "join",
+      "condition": "a.city = b.city",
+      "left": {
+        "op": "rename",
+        "to": "a",
+        "child": {
+          "op": "scan",
+          "table": "Dept"
+        }
+      },
+      "right": {
+        "op": "rename",
+        "to": "b",
+        "child": {
+          "op": "scan",
+          "table": "Dept"
+        }
+      }
+    }
+  }
+}

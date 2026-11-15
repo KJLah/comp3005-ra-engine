@@ -1,0 +1,44 @@
+{
+  "op": "project",
+  "columns": [
+    "d.dname",
+    "n"
+  ],
+  "child": {
+    "op": "group_by",
+    "keys": [
+      "d.dname"
+    ],
+    "aggregates": [
+      [
+        "count",
+        "*",
+        "n"
+      ]
+    ],
+    "child": {
+      "op": "select",
+      "condition": "e.salary > 100000",
+      "child": {
+        "op": "join",
+        "condition": "e.did = d.did",
+        "left": {
+          "op": "rename",
+          "to": "e",
+          "child": {
+            "op": "scan",
+            "table": "Emp"
+          }
+        },
+        "right": {
+          "op": "rename",
+          "to": "d",
+          "child": {
+            "op": "scan",
+            "table": "Dept"
+          }
+        }
+      }
+    }
+  }
+}

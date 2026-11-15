@@ -1,0 +1,31 @@
+{
+  "op": "project",
+  "columns": [
+    "w.eid",
+    "p.pname"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "p.did = 3 and w.role = 'lead'",
+    "child": {
+      "op": "join",
+      "condition": "w.pid = p.pid",
+      "left": {
+        "op": "rename",
+        "to": "w",
+        "child": {
+          "op": "scan",
+          "table": "Works"
+        }
+      },
+      "right": {
+        "op": "rename",
+        "to": "p",
+        "child": {
+          "op": "scan",
+          "table": "Proj"
+        }
+      }
+    }
+  }
+}

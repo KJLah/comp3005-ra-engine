@@ -1,0 +1,37 @@
+{
+  "op": "project",
+  "columns": [
+    "u.city"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "u.city = 'Ottawa'",
+    "child": {
+      "op": "rename",
+      "to": "u",
+      "child": {
+        "op": "union_all",
+        "left": {
+          "op": "project",
+          "columns": [
+            "Emp.city"
+          ],
+          "child": {
+            "op": "scan",
+            "table": "Emp"
+          }
+        },
+        "right": {
+          "op": "project",
+          "columns": [
+            "Dept.city"
+          ],
+          "child": {
+            "op": "scan",
+            "table": "Dept"
+          }
+        }
+      }
+    }
+  }
+}
