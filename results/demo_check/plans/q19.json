@@ -1,0 +1,57 @@
+{
+  "op": "group_by",
+  "mode": "sort",
+  "keys": [
+    "d.dname"
+  ],
+  "aggregates": [
+    [
+      "count",
+      "*",
+      "n"
+    ]
+  ],
+  "child": {
+    "op": "project",
+    "columns": [
+      "d.dname"
+    ],
+    "child": {
+      "op": "nested_loop_join",
+      "condition": "e.did = d.did",
+      "left": {
+        "op": "project",
+        "columns": [
+          "d.did",
+          "d.dname"
+        ],
+        "child": {
+          "op": "rename",
+          "to": "d",
+          "child": {
+            "op": "seqscan",
+            "table": "Dept"
+          }
+        }
+      },
+      "right": {
+        "op": "project",
+        "columns": [
+          "e.did"
+        ],
+        "child": {
+          "op": "filter",
+          "condition": "e.salary > 100000",
+          "child": {
+            "op": "rename",
+            "to": "e",
+            "child": {
+              "op": "seqscan",
+              "table": "Emp"
+            }
+          }
+        }
+      }
+    }
+  }
+}

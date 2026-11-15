@@ -1,0 +1,28 @@
+{
+  "op": "group_by",
+  "mode": "sort",
+  "keys": [
+    "Emp.did"
+  ],
+  "aggregates": [
+    [
+      "count",
+      "*",
+      "n"
+    ]
+  ],
+  "child": {
+    "op": "project",
+    "columns": [
+      "Emp.did"
+    ],
+    "child": {
+      "op": "filter",
+      "condition": "Emp.did < 10",
+      "child": {
+        "op": "seqscan",
+        "table": "Emp"
+      }
+    }
+  }
+}

@@ -966,11 +966,11 @@ Verification:
 - Integration regression suite: 13 tests passed.
 - Full suite: 556 tests passed.
 - Rehearsal comparison: 25 of 25 answers matched SQLite.
-- Official demo validation is pending because the instructor has not
-  released the dataset and 25 queries. PostgreSQL/OpenStack results
-  will be recorded when that validation is performed.
+- Updated following the instructor's clarification: our own dataset and
+  queries are accepted, and all 25 answers matched SQLite.
+- PostgreSQL/OpenStack validation has not yet been recorded.
 
-  ### Final assignment checklist review
+### Final assignment checklist review
 
 Checked the implementation and submitted documents against the complete
 Project 2 overview. The review identified missing source-reference
@@ -978,7 +978,33 @@ sections, missing published checkpoint tags, an inaccurate BNL cache-hit
 explanation, and an outdated M3 integration paragraph.
 
 Documentation and checkpoint-tag status:
-[Record the changes actually completed.]
+Added two references with design explanations to each module's report
+or design document. Corrected the BNL cache-hit explanation and updated
+the M3 integration description. Published all five checkpoint tags.
 
-Official workload validation remains pending release of the instructor's
-dataset and queries.
+Status updated following the instructor's clarification: no official
+dataset or queries will be released; our own workload is accepted.
+
+### Local rehearsal at B=4
+
+All 556 tests passed. Created a fresh database through the integrated
+shell, loaded and analyzed the four tables, and tested SQL, sorting,
+SET frames, and EXPLAIN ANALYZE interactively.
+
+Ran all 25 rehearsal queries at B=4 with three repetitions per query.
+All completed successfully. SQLite reported zero query errors, and
+the typed comparator confirmed 25 of 25 answers matched.
+
+Results are saved in results/demo_check/.
+Our own workload is accepted under the instructor's clarification.
+PostgreSQL/OpenStack validation has not yet been recorded.
+
+### Instructor clarification on submission data
+
+The instructor confirmed that no dataset or queries will be released
+and approved using our own dataset and queries. The submitted rehearsal
+uses four tables and 25 queries, reporting result row count, page I/O,
+wall time, and estimated against actual rows at the root.
+
+All 25 answers matched SQLite, and the full suite passed 556 tests.
+There is no instructor-provided workload to wait for.

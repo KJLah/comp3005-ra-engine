@@ -1,0 +1,14 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.eid"
+  ],
+  "child": {
+    "op": "filter",
+    "condition": "Emp.age < 25 or Emp.age > 60",
+    "child": {
+      "op": "seqscan",
+      "table": "Emp"
+    }
+  }
+}

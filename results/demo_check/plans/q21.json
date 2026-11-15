@@ -1,0 +1,23 @@
+{
+  "op": "intersect",
+  "left": {
+    "op": "project",
+    "columns": [
+      "Emp.city"
+    ],
+    "child": {
+      "op": "seqscan",
+      "table": "Emp"
+    }
+  },
+  "right": {
+    "op": "project",
+    "columns": [
+      "Dept.city"
+    ],
+    "child": {
+      "op": "seqscan",
+      "table": "Dept"
+    }
+  }
+}

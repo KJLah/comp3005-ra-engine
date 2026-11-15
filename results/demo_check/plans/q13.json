@@ -1,0 +1,15 @@
+{
+  "op": "distinct",
+  "mode": "sort",
+  "child": {
+    "op": "project",
+    "columns": [
+      "Emp.city",
+      "Emp.province"
+    ],
+    "child": {
+      "op": "seqscan",
+      "table": "Emp"
+    }
+  }
+}

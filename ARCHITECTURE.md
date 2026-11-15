@@ -144,7 +144,8 @@ a pipeline).
 
 ## 4. The demo
 
-The dataset and the 25 queries are published 72 hours before the demo.
+The instructor confirmed that no dataset or queries will be provided.
+This submission uses our own dataset and 25-query workload.
 
 ```
 radb --db data/demo --file demo_setup.sql            CREATE TABLE ..., LOAD ..., ANALYZE
@@ -189,7 +190,7 @@ One line each, as the instructor asked.
 - I7. Results are compared as bags by default. Use compare --ordered q01,q02 for queries whose ORDER BY requires an exact sequence. Do not require exact sequence equality when ties permit different valid orders.
 - I8. Identifiers are case sensitive in our SQL (Module 3) and folded to lower case by PostgreSQL. `pg_tools` writes lower-case table names, so unquoted names work in both.
 - I9. There are no NULLs (Module 1 has no NULL). A demo file with empty fields fails to load for an INT column and loads as an empty string for a VARCHAR column.
-- I10. The demo dataset and 25 queries were not published, so we used our own: gen_final.py (4 tables, 8,340 rows) and queries/final/workload.sql (25 queries). Their report is results/final/summary.md, and all 25 answers match SQLite over the same rows.
+- I10. The instructor confirmed that no dataset or queries will be supplied, so this submission uses our own four-table dataset and 25-query rehearsal workload.
 
 ## 6. What I would do differently
 

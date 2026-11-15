@@ -1,0 +1,26 @@
+{
+  "op": "group_by",
+  "mode": "sort",
+  "keys": [],
+  "aggregates": [
+    [
+      "count",
+      "*",
+      "n"
+    ]
+  ],
+  "child": {
+    "op": "project",
+    "columns": [
+      "Emp.eid"
+    ],
+    "child": {
+      "op": "filter",
+      "condition": "Emp.city = 'Ottawa' and Emp.province = 'ON'",
+      "child": {
+        "op": "seqscan",
+        "table": "Emp"
+      }
+    }
+  }
+}

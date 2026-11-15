@@ -1,0 +1,35 @@
+{
+  "op": "rename",
+  "to": "u",
+  "child": {
+    "op": "union_all",
+    "left": {
+      "op": "filter",
+      "condition": "Emp.city = 'Ottawa'",
+      "child": {
+        "op": "project",
+        "columns": [
+          "Emp.city"
+        ],
+        "child": {
+          "op": "seqscan",
+          "table": "Emp"
+        }
+      }
+    },
+    "right": {
+      "op": "filter",
+      "condition": "Dept.city = 'Ottawa'",
+      "child": {
+        "op": "project",
+        "columns": [
+          "Dept.city"
+        ],
+        "child": {
+          "op": "seqscan",
+          "table": "Dept"
+        }
+      }
+    }
+  }
+}
