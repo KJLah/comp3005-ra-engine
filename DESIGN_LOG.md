@@ -1,4 +1,4 @@
-# Design log
+# Design Log
 
 One short entry per working session: what I was trying to do, what I tried,
 and what broke. At least three entries must describe a time AI assistance was
@@ -750,3 +750,32 @@ naming), GRAMMAR_SQL.md, README section.
 - Result: all 437 tests pass (292 from Bonus 1, Module 1 and Module 2, 145
   from Module 3), Python 3.13.
 - `sh check_m3.sh` reports every Module 3 file present.
+
+
+---
+
+## 2026-11-14: Module 3 error handling and set-type review
+
+**Problems found in the AI-assisted implementation:**
+- Non-COUNT aggregates with * reached an assertion and produced a traceback.
+- Set operations treated INT and REAL as the same type, although the
+  Module 2 executor rejects that combination.
+- Extremely long integer literals leaked Python's ValueError.
+- INSERT checked individual fields but not the complete record size,
+  allowing an oversized row to reach storage and produce a traceback.
+- The completeness checker searched for a particular source spelling
+  of <> and falsely reported that working functionality was missing.
+
+**Fixes applied:**
+- Reject invalid star aggregates with a positioned AggregateError.
+- Require matching types in each set-operation column position.
+- Convert failed integer parsing into a positioned LexicalError.
+- Check complete record size before calling storage.
+- Replace source-text checks with functional tokenization/parsing checks
+  and return a failing checker status when problems are found.
+
+**Verification:**
+- Full-suite command: python3 -m unittest discover -s tests -v
+- Actual result: [record your result]
+- Completeness command: sh check_m3.sh
+- Actual result: [record your result]
