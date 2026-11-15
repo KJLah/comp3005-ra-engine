@@ -20,10 +20,25 @@ have GRAMMAR_SQL.md; have DESIGN_M3.md; have DESIGN_LOG.md
 
 has pyproject.toml 'sql = "sql.cli:main"' "missing the sql script line"
 has pyproject.toml '"sql\*"' "sql* not in the packages include list"
-has ra_engine/lexer.py "'<>'" "Bonus 1 lexer does not read <> (step 6)"
-has ra_engine/parser.py '"<>"' "Bonus 1 parser does not map <> to != (step 6)"
+
+if python3 - <<'PY'
+from ra_engine.lexer import tokenize
+from ra_engine.parser import parse_query
+
+assert any(t.text == "<>" for t in tokenize("a<>b"))
+assert parse_query("select[a<>1](R)").cond.op == "!="
+PY
+then
+  ok=$((ok+2))
+else
+  echo "CHECK    Bonus 1 <> tokenization or comparison parsing failed"
+  bad=$((bad+1))
+fi
+
 has DESIGN_LOG.md "Module 3 step 1, the SQL scanner" "Module 3 entries not appended"
 has README.md "## Module 3: SQL front end" "README has no Module 3 section"
 
 echo "----"
 echo "$ok checks passed, $bad problems"
+
+[ "$bad" -eq 0 ]

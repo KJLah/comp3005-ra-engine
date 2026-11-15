@@ -178,8 +178,16 @@ def agg_type(call: A.AggCall, arg: Optional[ColInfo], arg_name: Optional[str]) -
     """Type rules of Section 3.2: SUM and AVG need INT, COUNT takes anything,
     MIN and MAX take either type. Returns the output column type."""
     fn = call.fn
+
     if fn == "count":
         return ColInfo("", INT)
+
+    if call.arg is None:
+        raise AggregateError(
+            f"{fn.upper()}(*) is not allowed; only COUNT accepts *",
+            call.pos,
+        )
+
     assert arg is not None
     if fn in ("sum", "avg") and arg.type != INT:
         raise TypeError_(f"{fn.upper()} needs an INT column, but {arg_name} is "
@@ -217,23 +225,37 @@ def literal_type(o) -> Tuple[str, ColInfo]:
 
 def check_comparison(cmp: A.Compare, left: Tuple[str, ColInfo],
                      right: Tuple[str, ColInfo]) -> None:
-    """Section 3.2: comparing different types is an error, equality included."""
+    """Check the types of an ordinary condition."""
     (ln, lt), (rn, rt) = left, right
+
     if kind(lt.type) != kind(rt.type):
-        raise TypeError_(f"cannot compare {ln} ({lt.type_text()}) with "
-                         f"{rn} ({rt.type_text()})", cmp.pos)
+        raise TypeError_(
+            f"cannot compare {ln} ({lt.type_text()}) with "
+            f"{rn} ({rt.type_text()})",
+            cmp.pos,
+        )
 
 
-def check_set_operands(op: A.SetOp, left: Sequence[ColInfo], right: Sequence[ColInfo],
-                       lnames: Sequence[str], rnames: Sequence[str]) -> None:
-    """Section 3.2: same column count, same type in each position."""
+def check_set_operands(op: A.SetOp, left: Sequence[ColInfo],
+                       right: Sequence[ColInfo],
+                       lnames: Sequence[str],
+                       rnames: Sequence[str]) -> None:
+    """Set operations require matching column counts and types."""
     word = op.op.upper().replace("_", " ")
+
     if len(left) != len(right):
-        raise SchemaError(f"{word} needs the same number of columns on both sides: "
-                          f"the left query has {len(left)}, the right has {len(right)}",
-                          op.pos)
+        raise SchemaError(
+            f"{word} needs the same number of columns on both sides: "
+            f"the left query has {len(left)}, "
+            f"the right has {len(right)}",
+            op.pos,
+        )
+
     for i, (a, b) in enumerate(zip(left, right), 1):
-        if kind(a.type) != kind(b.type):
-            raise SchemaError(f"{word} column {i} has different types: {lnames[i-1]} "
-                              f"is {a.type_text()} on the left, {rnames[i-1]} is "
-                              f"{b.type_text()} on the right", op.pos)
+        if a.type != b.type:
+            raise SchemaError(
+                f"{word} column {i} has different types: "
+                f"{lnames[i-1]} is {a.type_text()} on the left, "
+                f"{rnames[i-1]} is {b.type_text()} on the right",
+                op.pos,
+            )
