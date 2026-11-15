@@ -1,0 +1,28 @@
+{
+  "op": "limit",
+  "n": 10,
+  "child": {
+    "op": "sort",
+    "keys": [
+      [
+        "Emp.salary",
+        "desc"
+      ]
+    ],
+    "child": {
+      "op": "project",
+      "columns": [
+        "Emp.name",
+        "Emp.salary"
+      ],
+      "child": {
+        "op": "select",
+        "condition": "Emp.age < 30",
+        "child": {
+          "op": "scan",
+          "table": "Emp"
+        }
+      }
+    }
+  }
+}

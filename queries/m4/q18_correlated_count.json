@@ -1,0 +1,25 @@
+{
+  "op": "project",
+  "columns": [
+    "n"
+  ],
+  "child": {
+    "op": "group_by",
+    "keys": [],
+    "aggregates": [
+      [
+        "count",
+        "*",
+        "n"
+      ]
+    ],
+    "child": {
+      "op": "select",
+      "condition": "Emp.city = 'Ottawa' and Emp.province = 'ON'",
+      "child": {
+        "op": "scan",
+        "table": "Emp"
+      }
+    }
+  }
+}

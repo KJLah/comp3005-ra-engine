@@ -8,6 +8,15 @@ shapes are ours (DESIGN_M2.md):
     { "op": "union_all" | "union" | "intersect" | "except",
       "left": { ... }, "right": { ... } }
 
+Module 4 added four optional forms so that every Module 3 logical plan has a
+physical equivalent (DESIGN_M4.md section 1):
+
+    { "op": "rename", "to": "e", "child": { ... } }
+    { "op": "project", "columns": [...], "as": [null, "who"], "child": { ... } }
+    { "op": "nested_loop_join", "left": { ... }, "right": { ... } }   (no condition: cross)
+    "aggregates": [["count", "*", "n"], ...]                          (output name)
+
+      
 Every problem names the offending node by its path from the root (for
 example `plan.left.child`) and its op. Unknown fields are rejected too, so a
 typo such as "chlid" is caught instead of silently ignored.
@@ -32,12 +41,15 @@ AGGREGATES = ("count", "sum", "avg", "min", "max")
 FIELDS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     "seqscan": (("table",), ()),
     "filter": (("condition", "child"), ()),
-    "project": (("columns", "child"), ()),
+    "project": (("columns", "child"), ("as",)),
+    "rename": (("to", "child"), ()),
     "distinct": (("mode", "child"), ()),
     "sort": (("keys", "child"), ()),
     "group_by": (("mode", "keys", "aggregates", "child"), ()),
     "limit": (("n", "child"), ()),
     **{j: (("condition", "left", "right"), ()) for j in JOIN_OPS},
+    # Module 4: a nested loop join without a condition is a cross product
+    "nested_loop_join": (("left", "right"), ("condition",)),
     **{s: (("left", "right"), ()) for s in SET_OPS},
 }
 
@@ -87,12 +99,20 @@ def validate(node: Any, path: str = "plan") -> None:
     if op == "seqscan":
         if not isinstance(node["table"], str) or not node["table"]:
             raise bad("table", "a table name")
-    if op in ("filter",) + JOIN_OPS:
+    if op in ("filter",) + JOIN_OPS and "condition" in node:
         if not isinstance(node["condition"], str) or not node["condition"].strip():
             raise bad("condition", "a non-empty condition string")
     if op == "project":
         if not _is_str_list(node["columns"]) or not node["columns"]:
             raise bad("columns", "a non-empty list of column names")
+        if "as" in node:
+            names = node["as"]
+            if (not isinstance(names, list) or len(names) != len(node["columns"])
+                    or not all(n is None or (isinstance(n, str) and n) for n in names)):
+                raise bad("as", "a list as long as columns, of names or null")
+    if op == "rename":
+        if not isinstance(node["to"], str) or not node["to"] or "." in node["to"]:
+            raise bad("to", "a name without a dot")
     if op in ("distinct", "group_by"):
         if node["mode"] not in ("sort", "hash"):
             raise bad("mode", "\"sort\" or \"hash\"")
@@ -107,11 +127,12 @@ def validate(node: Any, path: str = "plan") -> None:
             raise bad("keys", "a list of column names (possibly empty)")
         aggs = node["aggregates"]
         if not isinstance(aggs, list) or not all(
-                isinstance(a, list) and len(a) == 2 and isinstance(a[0], str)
-                and a[0].lower() in AGGREGATES and isinstance(a[1], str) for a in aggs):
-            raise bad("aggregates", "a list of [function, column] pairs with function "
-                                    "one of count, sum, avg, min, max")
-        for fn, col in aggs:
+                isinstance(a, list) and len(a) in (2, 3) and isinstance(a[0], str)
+                and a[0].lower() in AGGREGATES and isinstance(a[1], str)
+                and (len(a) == 2 or (isinstance(a[2], str) and a[2])) for a in aggs):
+            raise bad("aggregates", "a list of [function, column] or [function, column, "
+                                    "name] with function one of count, sum, avg, min, max")
+        for fn, col, *_ in aggs:
             if col == "*" and fn.lower() != "count":
                 raise _fail(path, op, f"{fn}(*) is not allowed; only count takes *")
         if not node["keys"] and not aggs:

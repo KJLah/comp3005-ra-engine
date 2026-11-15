@@ -1,0 +1,15 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.eid",
+    "Emp.city"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "not Emp.age >= 30 and Emp.city <> 'Ottawa'",
+    "child": {
+      "op": "scan",
+      "table": "Emp"
+    }
+  }
+}

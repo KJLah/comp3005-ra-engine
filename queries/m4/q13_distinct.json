@@ -1,0 +1,14 @@
+{
+  "op": "distinct",
+  "child": {
+    "op": "project",
+    "columns": [
+      "Emp.city",
+      "Emp.province"
+    ],
+    "child": {
+      "op": "scan",
+      "table": "Emp"
+    }
+  }
+}

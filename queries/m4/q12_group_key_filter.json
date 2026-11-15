@@ -1,0 +1,28 @@
+{
+  "op": "project",
+  "columns": [
+    "Emp.did",
+    "n"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "Emp.did < 10",
+    "child": {
+      "op": "group_by",
+      "keys": [
+        "Emp.did"
+      ],
+      "aggregates": [
+        [
+          "count",
+          "*",
+          "n"
+        ]
+      ],
+      "child": {
+        "op": "scan",
+        "table": "Emp"
+      }
+    }
+  }
+}

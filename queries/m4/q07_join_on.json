@@ -1,0 +1,31 @@
+{
+  "op": "project",
+  "columns": [
+    "e.name",
+    "d.dname"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "e.age > 60 and d.budget > 100000",
+    "child": {
+      "op": "join",
+      "condition": "e.did = d.did",
+      "left": {
+        "op": "rename",
+        "to": "e",
+        "child": {
+          "op": "scan",
+          "table": "Emp"
+        }
+      },
+      "right": {
+        "op": "rename",
+        "to": "d",
+        "child": {
+          "op": "scan",
+          "table": "Dept"
+        }
+      }
+    }
+  }
+}

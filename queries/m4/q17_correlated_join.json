@@ -1,0 +1,32 @@
+{
+  "op": "project",
+  "columns": [
+    "e.name",
+    "e.note",
+    "w.hours"
+  ],
+  "child": {
+    "op": "select",
+    "condition": "e.city = 'Ottawa' and e.area = '201'",
+    "child": {
+      "op": "join",
+      "condition": "e.eid = w.eid",
+      "left": {
+        "op": "rename",
+        "to": "e",
+        "child": {
+          "op": "scan",
+          "table": "Emp"
+        }
+      },
+      "right": {
+        "op": "rename",
+        "to": "w",
+        "child": {
+          "op": "scan",
+          "table": "Works"
+        }
+      }
+    }
+  }
+}
