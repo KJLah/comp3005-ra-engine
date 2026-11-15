@@ -1,0 +1,49 @@
+{
+  "op": "project",
+  "columns": [
+    "w.eid",
+    "p.pname"
+  ],
+  "child": {
+    "op": "nested_loop_join",
+    "condition": "w.pid = p.pid",
+    "left": {
+      "op": "project",
+      "columns": [
+        "p.pid",
+        "p.pname"
+      ],
+      "child": {
+        "op": "filter",
+        "condition": "p.did = 3",
+        "child": {
+          "op": "rename",
+          "to": "p",
+          "child": {
+            "op": "seqscan",
+            "table": "Proj"
+          }
+        }
+      }
+    },
+    "right": {
+      "op": "project",
+      "columns": [
+        "w.eid",
+        "w.pid"
+      ],
+      "child": {
+        "op": "filter",
+        "condition": "w.role = 'lead'",
+        "child": {
+          "op": "rename",
+          "to": "w",
+          "child": {
+            "op": "seqscan",
+            "table": "Works"
+          }
+        }
+      }
+    }
+  }
+}

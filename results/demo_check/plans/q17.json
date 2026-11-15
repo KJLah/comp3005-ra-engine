@@ -1,0 +1,47 @@
+{
+  "op": "project",
+  "columns": [
+    "e.name",
+    "e.note",
+    "w.hours"
+  ],
+  "child": {
+    "op": "nested_loop_join",
+    "condition": "e.eid = w.eid",
+    "left": {
+      "op": "project",
+      "columns": [
+        "e.eid",
+        "e.name",
+        "e.note"
+      ],
+      "child": {
+        "op": "filter",
+        "condition": "e.city = 'Ottawa' and e.area = '201'",
+        "child": {
+          "op": "rename",
+          "to": "e",
+          "child": {
+            "op": "seqscan",
+            "table": "Emp"
+          }
+        }
+      }
+    },
+    "right": {
+      "op": "project",
+      "columns": [
+        "w.eid",
+        "w.hours"
+      ],
+      "child": {
+        "op": "rename",
+        "to": "w",
+        "child": {
+          "op": "seqscan",
+          "table": "Works"
+        }
+      }
+    }
+  }
+}

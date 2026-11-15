@@ -1,0 +1,43 @@
+{
+  "op": "project",
+  "columns": [
+    "a.dname",
+    "b.dname"
+  ],
+  "child": {
+    "op": "nested_loop_join",
+    "condition": "a.city = b.city and a.did < b.did",
+    "left": {
+      "op": "project",
+      "columns": [
+        "b.did",
+        "b.dname",
+        "b.city"
+      ],
+      "child": {
+        "op": "rename",
+        "to": "b",
+        "child": {
+          "op": "seqscan",
+          "table": "Dept"
+        }
+      }
+    },
+    "right": {
+      "op": "project",
+      "columns": [
+        "a.did",
+        "a.dname",
+        "a.city"
+      ],
+      "child": {
+        "op": "rename",
+        "to": "a",
+        "child": {
+          "op": "seqscan",
+          "table": "Dept"
+        }
+      }
+    }
+  }
+}
