@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import tempfile
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -175,21 +176,63 @@ def _sorted_column(db_dir: str, table: str, col: str, frames: int):
 
 
 def _records(d: dict) -> List[bytes]:
-    """One column's statistics as one or more heap records (part 0, 1, ...)."""
-    whole = json.dumps(d, sort_keys=True).encode("utf-8")
+    """Encode statistics, splitting metadata and histogram if necessary."""
+    def encode(record):
+        return json.dumps(record, sort_keys=True).encode("utf-8")
+
+    def checked(record):
+        raw = encode(record)
+        if len(raw) > MAX_RECORD:
+            raise ValueError(
+                "A statistics component exceeds the record-size limit"
+            )
+        return raw
+
+    whole = encode(d)
     if len(whole) <= MAX_RECORD:
         return [whole]
+
     head = {k: v for k, v in d.items() if k != "hist"}
-    out, part, chunk = [], 0, []
-    for b in d["hist"]:
-        trial = dict(head if part == 0 else {"col": d["col"]}, part=part, hist=chunk + [b])
-        if chunk and len(json.dumps(trial).encode("utf-8")) > MAX_RECORD:
-            rec = dict(head if part == 0 else {"col": d["col"]}, part=part, hist=chunk)
-            out.append(json.dumps(rec, sort_keys=True).encode("utf-8"))
-            part, chunk = part + 1, []
-        chunk.append(b)
-    rec = dict(head if part == 0 else {"col": d["col"]}, part=part, hist=chunk)
-    out.append(json.dumps(rec, sort_keys=True).encode("utf-8"))
+    out = [checked(dict(head, part=0, hist=[]))]
+    part, chunk = 1, []
+
+    for bucket in d["hist"]:
+        trial = {
+            "col": d["col"],
+            "part": part,
+            "hist": chunk + [bucket],
+        }
+
+        if len(encode(trial)) > MAX_RECORD:
+            if not chunk:
+                raise ValueError(
+                    "A histogram bucket exceeds the record-size limit"
+                )
+
+            out.append(checked({
+                "col": d["col"],
+                "part": part,
+                "hist": chunk,
+            }))
+
+            part += 1
+            chunk = []
+
+            checked({
+                "col": d["col"],
+                "part": part,
+                "hist": [bucket],
+            })
+
+        chunk.append(bucket)
+
+    if chunk:
+        out.append(checked({
+            "col": d["col"],
+            "part": part,
+            "hist": chunk,
+        }))
+
     return out
 
 
@@ -204,28 +247,60 @@ def analyze(db_dir: str, table: str, buckets: int = DEFAULT_BUCKETS,
 
     # one scan: live tuples and average record width
     n, total = 0, 0
-    for _, rec in heap.scan():
-        n += 1
-        total += len(rec)
-    n_pages = _data_pages(cat, info)
-    width = round(total / n, 3) if n else 0.0
-
     col_dicts = []
-    for c in info.columns:
-        widths, count = 0, 0
 
-        def stream():
-            nonlocal widths, count
-            for v in _sorted_column(db_dir, table, c.name, frames):
-                widths += _value_width(v)
-                count += 1
-                yield v
-        hist = build_histogram(stream(), n, buckets)
-        col_dicts.append({
-            "col": c.name, "ndv": sum(b[3] for b in hist),
-            "min": hist[0][0] if hist else None, "max": hist[-1][1] if hist else None,
-            "width": round(widths / count, 3) if count else default_width(c),
-            "hist": hist})
+    with tempfile.TemporaryDirectory(prefix="m4-analyze-") as work_dir:
+        work_cat = Catalog(work_dir, BufferPool(4))
+        work_cat.create_table(table, info.columns)
+        work_heap = work_cat.open_heap(table)
+
+        # Read the original table once and materialize its live records.
+        source = heap.scan()
+        try:
+            for _, rec in source:
+                n += 1
+                total += len(rec)
+                work_heap.insert(rec)
+        finally:
+            source.close()
+
+        work_cat.flush()
+
+        # Count pages in the original table, not the temporary copy.
+        n_pages = _data_pages(cat, info)
+        width = round(total / n, 3) if n else 0.0
+
+        for c in info.columns:
+            widths, count = 0, 0
+
+            def stream():
+                nonlocal widths, count
+
+                # Sort columns from the temporary copy.
+                values = _sorted_column(
+                    work_dir, table, c.name, frames
+                )
+                try:
+                    for v in values:
+                        widths += _value_width(v)
+                        count += 1
+                        yield v
+                finally:
+                    values.close()
+
+            hist = build_histogram(stream(), n, buckets)
+
+            col_dicts.append({
+                "col": c.name,
+                "ndv": sum(b[3] for b in hist),
+                "min": hist[0][0] if hist else None,
+                "max": hist[-1][1] if hist else None,
+                "width": (
+                    round(widths / count, 3)
+                    if count else default_width(c)
+                ),
+                "hist": hist,
+            })
 
     # replace the statistics file
     stats_file = f"{table}.stats"
