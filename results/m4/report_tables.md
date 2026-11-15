@@ -10,7 +10,7 @@ Database: gen_m4.py (seed 3005), B = 8 unless stated.
 | q02_range | 3 | 1.0 | 1.0 |
 | q03_and | 3 | 1.17 | 1.17 |
 | q04_varchar_range | 3 | 1.0 | 1.0 |
-| q05_or | 3 | 1.29 | 1.29 |
+| q05_or | 3 | 1.06 | 1.06 |
 | q06_not | 3 | 1.08 | 1.08 |
 | q07_join_on | 10 | 1.0 | 1.0 |
 | q08_join_commas | 10 | 1.0 | 1.0 |
