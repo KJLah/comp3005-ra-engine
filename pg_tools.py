@@ -17,9 +17,12 @@ the same data. These commands prepare that run and compare the answers.
 
     python3 pg_tools.py compare --ours results/final/rows --ref pg/rows
         Compares every query's answer as a bag of rows (duplicates count).
-        Numbers are compared after rounding to 4 decimals, since AVG is
-        printed with 4 decimals by us and with more by PostgreSQL. Column
-        names are not compared (PostgreSQL drops the e. prefix).
+        Output types are read from schemas/<q>.json next to summary.csv.
+        Strings and integers compare exactly; only REAL uses four-decimal
+        display rounding. The nonempty query set must match summary.csv.
+        Column names are not compared (PostgreSQL drops the e. prefix).
+        Add --ordered q01,q02 for queries requiring exact sequence equality;
+        use this only when ORDER BY ties cannot permit a different sequence.
 
 Our string order is byte order. PostgreSQL's default collation is not, so
 pg/schema.sql declares every VARCHAR column COLLATE "C"; otherwise a
@@ -30,10 +33,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import sqlite3
 import sys
 from collections import Counter
+from decimal import Decimal, InvalidOperation
 from typing import Dict, List
 
 from storage.buffer import BufferPool
@@ -71,7 +76,7 @@ def cmd_export(a) -> None:
         schema.append(_ddl(info, collate=True))
         path = os.path.join("data", f"{info.name}.csv")
         with open(os.path.join(a.out, path), "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerows(rows)
+            csv.writer(f, quoting=csv.QUOTE_ALL).writerows(rows)
         load.append(f"\\copy {info.name.lower()} FROM '{path}' WITH (FORMAT csv)")
         load.append(f"ANALYZE {info.name.lower()};")
         print(f"exported {info.name}: {len(rows)} rows")
@@ -79,75 +84,150 @@ def cmd_export(a) -> None:
         f.write("\n".join(schema) + "\n")
     with open(os.path.join(a.out, "load.sql"), "w", encoding="utf-8") as f:
         f.write("\n".join(load) + "\n")
-    lines = ["#!/bin/sh", "# usage: cd pg && sh run.sh DBNAME   (after schema.sql and load.sql)",
-             'DB="${1:?give the PostgreSQL database name}"', "mkdir -p rows"]
+    lines = [
+        "#!/bin/sh",
+        "set -eu",
+        "# usage: cd pg && sh run.sh DBNAME",
+        'DB="${1:?give the PostgreSQL database name}"',
+        "mkdir -p rows",
+    ]
     if a.queries:
         os.makedirs(os.path.join(a.out, "queries"), exist_ok=True)
         for name, text in _queries(a.queries):
             with open(os.path.join(a.out, "queries", f"{name}.sql"), "w", encoding="utf-8") as f:
                 f.write(text.strip() + "\n")
-            lines.append(f'psql -X -q -d "$DB" --csv -f queries/{name}.sql -o rows/{name}.csv')
+            lines.append(
+                f'psql -X -q -v ON_ERROR_STOP=1 -d "$DB" '
+                f'--csv -f queries/{name}.sql -o rows/{name}.csv'
+            )
     with open(os.path.join(a.out, "run.sh"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     print(f"wrote {a.out}/schema.sql, load.sql and run.sh")
 
 
-def cmd_sqlite(a) -> None:
+def cmd_sqlite(a) -> int:
     con = sqlite3.connect(":memory:")
+
     for info, rows in _tables(a.db):
         con.execute(_ddl(info, collate=False))
         marks = ",".join("?" * len(info.columns))
-        con.executemany(f"INSERT INTO {info.name.lower()} VALUES ({marks})", rows)
+        con.executemany(
+            f"INSERT INTO {info.name.lower()} VALUES ({marks})",
+            rows,
+        )
+
     os.makedirs(os.path.join(a.out, "rows"), exist_ok=True)
+    failed = 0
+
     for name, text in _queries(a.queries):
+        path = os.path.join(a.out, "rows", f"{name}.csv")
+        if os.path.exists(path):
+            os.remove(path)
         try:
             cur = con.execute(text.strip().rstrip(";"))
         except sqlite3.Error as e:
             print(f"{name}: sqlite error: {e}")
+            failed += 1
             continue
-        with open(os.path.join(a.out, "rows", f"{name}.csv"), "w", newline="",
-                  encoding="utf-8") as f:
+
+        path = os.path.join(a.out, "rows", f"{name}.csv")
+        with open(path, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow([d[0] for d in cur.description])
             w.writerows(cur.fetchall())
-    print(f"wrote {a.out}/rows")
+
+    con.close()
+    print(f"wrote {a.out}/rows; {failed} query error(s)")
+    return 1 if failed else 0
 
 
-def _norm(v: str) -> str:
-    try:
-        x = float(v)
-    except ValueError:
+def _norm(v: str, typ: str):
+    if typ == "VARCHAR":
         return v
-    return f"{round(x, 4):.4f}"
+    if typ not in ("INT", "BIGINT", "REAL"):
+        raise ValueError(f"unsupported result type {typ!r}")
+    value = Decimal(v)
+    if not value.is_finite():
+        raise ValueError(f"non-finite numeric result {v!r}")
+    if typ in ("INT", "BIGINT"):
+        if value != value.to_integral_value():
+            raise ValueError(f"non-integral result {v!r} for {typ}")
+        return int(value)
+    # REAL is the executor's floating-point AVG. Use its display rounding
+    # for both sides, without ever converting INT/BIGINT or VARCHAR.
+    rounded = Decimal(format(float(value), ".4f"))
+    if not rounded.is_finite():
+        raise ValueError(f"REAL result is out of range: {v!r}")
+    return rounded
 
 
-def _read(path: str):
+def _read(path: str, types):
     with open(path, newline="", encoding="utf-8") as f:
         rows = list(csv.reader(f))
-    return [tuple(_norm(v) for v in r) for r in rows[1:]]
+    if not rows or len(rows[0]) != len(types):
+        raise ValueError(f"{path}: missing header or wrong column count")
+    result = []
+    for line, row in enumerate(rows[1:], 2):
+        if len(row) != len(types):
+            raise ValueError(f"{path}: wrong field count at CSV record {line}")
+        result.append(tuple(_norm(v, t) for v, t in zip(row, types)))
+    return result
 
 
 def cmd_compare(a) -> int:
-    ours = sorted(f for f in os.listdir(a.ours) if f.endswith(".csv"))
+    try:
+        report_dir = os.path.dirname(os.path.abspath(a.ours))
+        with open(os.path.join(report_dir, "summary.csv"), newline="",
+                  encoding="utf-8") as f:
+            report = list(csv.DictReader(f))
+        names = [row["query"] for row in report]
+        if not names or len(set(names)) != len(names):
+            raise ValueError("summary.csv must list a nonempty, unique query set")
+        failed = [row["query"] for row in report if row.get("error")]
+        if failed:
+            raise ValueError("workload queries failed: " + ", ".join(failed))
+        expected = {name + ".csv" for name in names}
+        for directory, label in ((a.ours, "ours"), (a.ref, "reference")):
+            actual = {f for f in os.listdir(directory) if f.endswith(".csv")}
+            if actual != expected:
+                raise ValueError(
+                    f"{label} query files differ from summary.csv: "
+                    f"missing={sorted(expected - actual)}, "
+                    f"extra={sorted(actual - expected)}"
+                )
+        ordered = {n.strip() for n in getattr(a, "ordered", "").split(",") if n.strip()}
+        if not ordered <= set(names):
+            raise ValueError("--ordered contains unknown query names")
+    except (OSError, ValueError, KeyError, csv.Error) as e:
+        print(f"comparison failed: {e}")
+        return 1
+
     bad = 0
-    for f in ours:
-        ref = os.path.join(a.ref, f)
-        name = f[:-4]
-        if not os.path.exists(ref):
-            print(f"{name}: no reference answer")
+    for row in report:
+        name = row["query"]
+        try:
+            with open(os.path.join(report_dir, "schemas", name + ".json"),
+                      encoding="utf-8") as f:
+                types = json.load(f)
+            if not isinstance(types, list) or not types or any(
+                t not in ("VARCHAR", "INT", "BIGINT", "REAL") for t in types
+            ):
+                raise ValueError("invalid output schema")
+            x = _read(os.path.join(a.ours, name + ".csv"), types)
+            y = _read(os.path.join(a.ref, name + ".csv"), types)
+            if len(x) != int(row["rows"]) or len(x) != int(row["actual_rows"]):
+                raise ValueError("our row file disagrees with summary.csv")
+            if Counter(x) != Counter(y):
+                raise ValueError(f"different values: ours {len(x)} rows, reference {len(y)} rows")
+            if name in ordered and x != y:
+                raise ValueError("same bag of rows, but incorrect required order")
+        except (OSError, ValueError, KeyError, InvalidOperation, csv.Error) as e:
             bad += 1
+            print(f"{name}: DIFFERENT or invalid: {e}")
             continue
-        x, y = _read(os.path.join(a.ours, f)), _read(ref)
-        if Counter(x) == Counter(y):
-            order = "same order" if x == y else "different order"
-            print(f"{name}: match ({len(x)} rows, {order})")
-        else:
-            bad += 1
-            only_x = list((Counter(x) - Counter(y)).elements())[:3]
-            only_y = list((Counter(y) - Counter(x)).elements())[:3]
-            print(f"{name}: DIFFERENT: ours {len(x)} rows, reference {len(y)} rows; "
-                  f"only ours e.g. {only_x}; only reference e.g. {only_y}")
-    print(f"{len(ours) - bad} of {len(ours)} match")
+        order = "same order" if x == y else "different order"
+        print(f"{name}: match ({len(x)} rows, {order})")
+    print(f"{len(names) - bad} of {len(names)} match")
     return 1 if bad else 0
 
 
@@ -165,11 +245,13 @@ def main(argv=None) -> int:
     s = sub.add_parser("compare")
     s.add_argument("--ours", required=True)
     s.add_argument("--ref", required=True)
+    s.add_argument("--ordered", default="",
+                   help="comma-separated query names requiring exact row order; use when ORDER BY has no ties")
     a = ap.parse_args(argv)
     if a.cmd == "export":
         cmd_export(a)
     elif a.cmd == "sqlite":
-        cmd_sqlite(a)
+        return cmd_sqlite(a)
     else:
         return cmd_compare(a)
     return 0

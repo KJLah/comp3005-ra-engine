@@ -1,0 +1,32 @@
+{
+  "op": "rename",
+  "to": "t",
+  "child": {
+    "op": "filter",
+    "condition": "n > 10",
+    "child": {
+      "op": "group_by",
+      "mode": "sort",
+      "keys": [
+        "Proj.did"
+      ],
+      "aggregates": [
+        [
+          "count",
+          "*",
+          "n"
+        ]
+      ],
+      "child": {
+        "op": "project",
+        "columns": [
+          "Proj.did"
+        ],
+        "child": {
+          "op": "seqscan",
+          "table": "Proj"
+        }
+      }
+    }
+  }
+}

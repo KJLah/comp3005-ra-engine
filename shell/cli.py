@@ -21,7 +21,7 @@ import argparse
 import sys
 from typing import List, Optional, TextIO
 
-from .session import DEFAULT_FRAMES, Session
+from .session import DEFAULT_FRAMES, MIN_FRAMES, Session
 from .split import terminated
 
 
@@ -98,8 +98,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[List[str]] = None, inp: TextIO = sys.stdin, out: TextIO = sys.stdout,
          err: TextIO = sys.stderr) -> int:
     args = build_parser().parse_args(argv)
-    if args.frames < 3:
-        err.write("error: shell: --frames must be at least 3\n")
+    if args.frames < MIN_FRAMES:
+        err.write(f"error: shell: --frames must be at least {MIN_FRAMES}\n")
         return 1
     session = Session(args.db, args.frames, out)
     if args.command is not None:

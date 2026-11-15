@@ -61,14 +61,20 @@ Formulas from Section 2 with the plan's B:
 
 ### Where measurement and formula disagree, and why
 
-**BNL agrees up to directory pages.** The measured reads are always
-formula + 1 + ceil(M/(B−2)): one directory page for the outer scan, and one
-more every time the inner is rescanned. For example, M = 256 at B = 4 gives
-128 blocks, so 16,640 + 1 + 128 = 16,769. The comparison count is exactly
-|R| × |S| (4864 × 2432 = 11,829,248) at every B, as §2.7 says it must be:
-it depends on neither B nor the condition. No pool hits help here, because
-between rescans the inner's pages are pushed out of the few unpinned
-frames before they are needed again.
+**BNL includes directory reads and can benefit from buffer-pool hits.**
+Without cache hits, the expected reads are the textbook formula plus
+1 + ceil(M/(B−2)): one outer directory read and one inner directory read
+per block.
+
+For M=256, N=128 and B=4, this gives
+16,640 + 1 + 128 = 16,769, matching the measurement.
+
+Some larger-budget cases retain inner pages between scans. For M=16,
+N=8 and B=16, the uncached prediction is 35 reads, but the measured
+count is 33 because two inner-page fetches hit the buffer pool.
+
+The comparison count remains |R| × |S| regardless of these cache hits.
+For the largest pair, 4864 × 2432 = 11,829,248 comparisons at every B.
 
 **SMJ is one pass worse than the formula when M or N is just above a
 multiple of B.** Look at M = 64, B = 64 (258 vs 192) and M = 256, B = 256
@@ -271,3 +277,23 @@ than proving that every possible plan has no untracked memory.
 Every sample plan in `plans/` (one per operator, plus a 7-operator
 pipeline) runs at B = 4 on both a 3000-row database and an empty one, and
 ends with no pinned frame and no temporary file (`tests/test_m2_checklist.py`).
+
+## References and connection to the design
+
+1. Graefe, G. “Volcano—An Extensible and Parallel Query Evaluation
+   System.” IEEE Transactions on Knowledge and Data Engineering, 1994.
+
+   This source helped me validate the iterator interface and the
+   distinction between pipelined and blocking operators. My operators
+   expose open, next, and close; filter and project pass tuples through,
+   while external sort performs blocking work before returning sorted
+   tuples.
+
+2. Shapiro, L. D. “Join Processing in Database Systems with Large Main
+   Memories.” ACM Transactions on Database Systems, 1986.
+
+   This source helped me understand the memory assumptions behind
+   partitioned hash joins. My implementation checks whether partitions
+   fit, repartitions overflowing partitions, and uses a bounded fallback
+   when skew prevents useful partitioning. The skew experiment tests
+   where the simple three-pass cost model stops explaining actual I/O.

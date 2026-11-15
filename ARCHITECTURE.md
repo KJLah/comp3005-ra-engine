@@ -151,7 +151,10 @@ radb --db data/demo --file demo_setup.sql            CREATE TABLE ..., LOAD ...,
 python3 run_workload.py --db data/demo --queries demo_queries.sql --repeat 3 --out results/demo
 python3 pg_tools.py export --db data/demo --out pg --queries demo_queries.sql
     copy pg/ to the OpenStack instance, then:
-    cd pg && psql -d DB -f schema.sql && psql -d DB -f load.sql && sh run.sh DB
+    cd pg
+    psql -X -v ON_ERROR_STOP=1 -d DB -f schema.sql
+    psql -X -v ON_ERROR_STOP=1 -d DB -f load.sql
+    sh run.sh DB
 python3 pg_tools.py compare --ours results/demo/rows --ref pg/rows
 ```
 
@@ -160,10 +163,14 @@ I/O (reads + writes), the wall time (median of the runs) and the estimated
 rows at the root against the actual rows, with the q-error. `EXPLAIN
 ANALYZE` on any query explains its numbers node by node.
 
-`pg_tools.py export` writes PostgreSQL exactly the rows our heap files
-hold, with every VARCHAR column `COLLATE "C"`, because our string order is
-byte order. `compare` matches answers as bags of rows, with numbers rounded
-to 4 decimals (AVG is printed with 4 decimals).
+`pg_tools.py export` writes the rows held by our heap files, quoting every
+CSV field so empty strings remain empty strings in PostgreSQL. VARCHAR
+columns use COLLATE "C".
+
+The comparator reads output types from schemas/<query>.json. VARCHAR and
+integer values compare exactly; only REAL output uses four-decimal display
+rounding. It requires a nonempty, successful workload in summary.csv and
+the complete expected query-file set in both result directories.
 
 The rehearsal (`gen_final.py`, `queries/final/`) runs the same steps on our
 own data: 25 queries, all 25 answers equal to SQLite's over the same rows
@@ -178,10 +185,11 @@ One line each, as the instructor asked.
 - I3. LOAD does not refresh statistics. The shell says when they are stale, and the setup script runs `ANALYZE` after the loads.
 - I4. Page I/O is the sum of every operator's page reads and writes. Catalog and statistics reads are not counted, as in Module 2.
 - I5. Wall time is compile + plan + execute, measured with `time.perf_counter`, the median of `--repeat` runs. Printing rows is not timed.
-- I6. The default B is 32 frames. `SET frames = n` and `--frames` change it, and the report states the B it used.
-- I7. Answers are compared as bags. The compare tool also says whether the order is the same, which only matters for ORDER BY without ties: tied rows may come out in any order in both systems.
+- I6. The integrated shell supports B >= 4, with default B = 32. SET frames and --frames change the budget, and each query's report records the B actually used. Standalone module tools retain their existing supported budgets.
+- I7. Results are compared as bags by default. Use compare --ordered q01,q02 for queries whose ORDER BY requires an exact sequence. Do not require exact sequence equality when ties permit different valid orders.
 - I8. Identifiers are case sensitive in our SQL (Module 3) and folded to lower case by PostgreSQL. `pg_tools` writes lower-case table names, so unquoted names work in both.
 - I9. There are no NULLs (Module 1 has no NULL). A demo file with empty fields fails to load for an INT column and loads as an empty string for a VARCHAR column.
+- I10. The demo dataset and 25 queries were not published, so we used our own: gen_final.py (4 tables, 8,340 rows) and queries/final/workload.sql (25 queries). Their report is results/final/summary.md, and all 25 answers match SQLite over the same rows.
 
 ## 6. What I would do differently
 

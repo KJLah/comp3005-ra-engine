@@ -1,0 +1,17 @@
+{
+  "op": "sort",
+  "keys": [
+    [
+      "Dept.did",
+      "asc"
+    ]
+  ],
+  "child": {
+    "op": "filter",
+    "condition": "Dept.budget >= 150000",
+    "child": {
+      "op": "seqscan",
+      "table": "Dept"
+    }
+  }
+}
