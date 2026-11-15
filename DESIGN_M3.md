@@ -280,3 +280,23 @@ Module 4 still has to add, because the executor has no equivalent yet:
 `rename` (needed by every alias, including the self join), `cross`, and the
 `as` names of `project` and of aggregates with an alias (Module 2's
 group_by always uses default names).
+
+## References and connection to the design
+
+1. Nystrom, R. Crafting Interpreters. Chapters on expression parsing and
+   recursive descent.
+   https://craftinginterpreters.com/parsing-expressions.html
+
+   This source helped me validate the handwritten parser structure.
+   Separate parsing functions represent precedence levels, while loops
+   implement left-associative operators. This makes precedence explicit
+   without regular expressions or a parser generator.
+
+2. PostgreSQL Global Development Group. PostgreSQL documentation:
+   SELECT.
+   https://www.postgresql.org/docs/current/sql-select.html
+
+   This source helped me validate the SQL translation and bag-semantics
+   decisions. WHERE filters input rows before grouping, HAVING filters
+   groups, and duplicate elimination is explicit for SELECT DISTINCT
+   and UNION. UNION ALL preserves duplicates.
