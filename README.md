@@ -143,6 +143,34 @@ JSON (`sql compile --json`). The Module 4 tests are `tests/test_m4_*.py`.
 - [REPORT_M4.md](REPORT_M4.md): q-error, optimized against unoptimized,
   rule ablation, and the correlated query that breaks the optimizer.
 
+## Integration: one program
+
+`radb` wires the four modules into one prompt: SQL goes in, rows come out
+(Module 3 compiles, Module 4 plans, Module 2 runs, Module 1 serves the
+pages). The four module tools above still work unchanged.
+
+```bash
+python3 -m pip install -e .                     # adds `radb` (or: python3 -m shell)
+python3 gen_final.py                            # rehearsal CSVs in data/final/
+radb --db data/finaldb --file queries/final/setup.sql      # CREATE, LOAD, ANALYZE
+radb --db data/finaldb                          # the prompt; \? lists the commands
+python3 run_workload.py --db data/finaldb --queries queries/final/workload.sql --repeat 3
+python3 pg_tools.py sqlite  --db data/finaldb --queries queries/final/workload.sql --out ref
+python3 pg_tools.py compare --ours results/final/rows --ref ref/rows
+```
+
+At the prompt, besides the SQL subset: `EXPLAIN q`, `EXPLAIN ANALYZE q`,
+`ANALYZE [t, ...]`, `SET frames = n`, `LOAD t FROM 'file.csv' [HEADER]`,
+`\d [t]`, `\q`. `run_workload.py` reports each query's row count, page
+I/O, wall time, and estimated against actual rows at the root
+(`results/final/summary.md`). `pg_tools.py export` prepares the same data
+and queries for PostgreSQL. The integration tests are
+`tests/test_integ_*.py`.
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): the whole system, the interface
+  between each pair of modules, the demo steps, and what we would do
+  differently.
+
 ## How to run
 
 ```bash
