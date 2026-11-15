@@ -271,15 +271,14 @@ shell); a syntax error anywhere stops the file before anything is applied.
 
 ## 10. From logical to physical
 
-The checklist asks that these plans run in the Module 2 executor once
-Module 4 makes them physical. `tests/test_m3_translate.py` has a small
-stand-in (`to_physical`) that renames scan to seqscan, select to filter and
-join to nested_loop_join and picks a mode, and runs the translated plans
-for counting, grouping with HAVING, a join, unions, DISTINCT and `<>`. What
-Module 4 still has to add, because the executor has no equivalent yet:
-`rename` (needed by every alias, including the self join), `cross`, and the
-`as` names of `project` and of aggregates with an alias (Module 2's
-group_by always uses default names).
+The Module 3 tests retain a small logical-to-physical adapter for isolated
+translation tests. The completed system uses Module 4's planner to produce
+physical plans that run directly in Module 2.
+
+The executor now supports rename, projection output aliases, named
+aggregates, and cross products through nested_loop_join without a
+condition. These additions support the logical forms emitted by Module 3.
+The integrated pipeline is exercised by tests/test_integ_workload.py.
 
 ## References and connection to the design
 
