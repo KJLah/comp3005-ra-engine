@@ -178,8 +178,16 @@ def agg_type(call: A.AggCall, arg: Optional[ColInfo], arg_name: Optional[str]) -
     """Type rules of Section 3.2: SUM and AVG need INT, COUNT takes anything,
     MIN and MAX take either type. Returns the output column type."""
     fn = call.fn
+
     if fn == "count":
         return ColInfo("", INT)
+
+    if call.arg is None:
+        raise AggregateError(
+            f"{fn.upper()}(*) is not allowed; only COUNT accepts *",
+            call.pos,
+        )
+
     assert arg is not None
     if fn in ("sum", "avg") and arg.type != INT:
         raise TypeError_(f"{fn.upper()} needs an INT column, but {arg_name} is "
@@ -219,7 +227,7 @@ def check_comparison(cmp: A.Compare, left: Tuple[str, ColInfo],
                      right: Tuple[str, ColInfo]) -> None:
     """Section 3.2: comparing different types is an error, equality included."""
     (ln, lt), (rn, rt) = left, right
-    if kind(lt.type) != kind(rt.type):
+    if a.type != b.type:
         raise TypeError_(f"cannot compare {ln} ({lt.type_text()}) with "
                          f"{rn} ({rt.type_text()})", cmp.pos)
 

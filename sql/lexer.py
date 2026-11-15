@@ -169,7 +169,15 @@ class Lexer:
             raise LexicalError(f"a name cannot start with a digit "
                                f"('{self.text[start.offset:self.i]}{self.peek()}...')",
                                start)
-        self.emit(INT, start, int(self.text[start.offset:self.i]))
+        try:
+            value = int(self.text[start.offset:self.i])
+        except ValueError:
+            raise LexicalError(
+                "integer literal is too large to parse",
+                start,
+            ) from None
+
+        self.emit(INT, start, value)
 
     def scan_string(self, start: Position) -> None:
         self.advance()                         # opening quote
