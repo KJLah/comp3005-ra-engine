@@ -1,0 +1,138 @@
+query,node,est_rows,actual_rows,q_error
+q01_eq,"project [Emp.name, Emp.salary]",223,223,1.0
+q01_eq,filter (Emp.city = 'Toronto'),223,223,1.0
+q01_eq,seqscan Emp,2000,2000,1.0
+q02_range,"project [Emp.eid, Emp.salary]",240,240,1.0
+q02_range,filter (Emp.age > 60),240,240,1.0
+q02_range,seqscan Emp,2000,2000,1.0
+q03_and,project [Emp.name],6,7,1.167
+q03_and,filter (Emp.did = 7 and Emp.age > 60),6,7,1.167
+q03_and,seqscan Emp,2000,2000,1.0
+q04_varchar_range,"project [Emp.name, Emp.city]",528,528,1.0
+q04_varchar_range,filter (Emp.city < 'L'),528,528,1.0
+q04_varchar_range,seqscan Emp,2000,2000,1.0
+q05_or,project [Emp.eid],350,451,1.289
+q05_or,filter (Emp.age < 25 or Emp.age > 60),350,451,1.289
+q05_or,seqscan Emp,2000,2000,1.0
+q06_not,"project [Emp.eid, Emp.city]",331,358,1.082
+q06_not,filter (not Emp.age >= 30 and Emp.city != 'Ottawa'),331,358,1.082
+q06_not,seqscan Emp,2000,2000,1.0
+q07_join_on,"project [e.name, d.dname]",168,168,1.0
+q07_join_on,nested_loop_join (e.did = d.did),168,168,1.0
+q07_join_on,"project [d.did, d.dname]",28,28,1.0
+q07_join_on,filter (d.budget > 100000),28,28,1.0
+q07_join_on,rename d,40,40,1.0
+q07_join_on,seqscan Dept,40,40,1.0
+q07_join_on,"project [e.name, e.did]",240,240,1.0
+q07_join_on,filter (e.age > 60),240,240,1.0
+q07_join_on,rename e,2000,2000,1.0
+q07_join_on,seqscan Emp,2000,2000,1.0
+q08_join_commas,"project [e.name, d.dname]",168,168,1.0
+q08_join_commas,nested_loop_join (e.did = d.did),168,168,1.0
+q08_join_commas,"project [d.did, d.dname]",28,28,1.0
+q08_join_commas,filter (d.budget > 100000),28,28,1.0
+q08_join_commas,rename d,40,40,1.0
+q08_join_commas,seqscan Dept,40,40,1.0
+q08_join_commas,"project [e.name, e.did]",240,240,1.0
+q08_join_commas,filter (e.age > 60),240,240,1.0
+q08_join_commas,rename e,2000,2000,1.0
+q08_join_commas,seqscan Emp,2000,2000,1.0
+q09_three_way,"project [e.name, p.pname, w.hours]",660,715,1.083
+q09_three_way,nested_loop_join (e.eid = w.eid),660,715,1.083
+q09_three_way,"project [p.pname, w.eid, w.hours]",660,715,1.083
+q09_three_way,nested_loop_join (w.pid = p.pid),660,715,1.083
+q09_three_way,"project [p.pid, p.pname]",33,35,1.061
+q09_three_way,filter (p.budget > 90000),33,35,1.061
+q09_three_way,rename p,300,300,1.0
+q09_three_way,seqscan Proj,300,300,1.0
+q09_three_way,"project [w.eid, w.pid, w.hours]",6000,6000,1.0
+q09_three_way,rename w,6000,6000,1.0
+q09_three_way,seqscan Works,6000,6000,1.0
+q09_three_way,"project [e.eid, e.name]",2000,2000,1.0
+q09_three_way,rename e,2000,2000,1.0
+q09_three_way,seqscan Emp,2000,2000,1.0
+q10_four_way,"project [e.name, d.dname, p.pname]",200,109,1.835
+q10_four_way,nested_loop_join (w.pid = p.pid),200,109,1.835
+q10_four_way,"project [d.dname, e.name, w.pid]",200,109,1.835
+q10_four_way,nested_loop_join (e.eid = w.eid),200,109,1.835
+q10_four_way,"project [d.dname, e.eid, e.name]",200,141,1.418
+q10_four_way,nested_loop_join (e.did = d.did),200,141,1.418
+q10_four_way,"project [d.did, d.dname]",4,3,1.333
+q10_four_way,filter (d.budget < 50000),4,3,1.333
+q10_four_way,rename d,40,40,1.0
+q10_four_way,seqscan Dept,40,40,1.0
+q10_four_way,"project [e.eid, e.name, e.did]",2000,2000,1.0
+q10_four_way,rename e,2000,2000,1.0
+q10_four_way,seqscan Emp,2000,2000,1.0
+q10_four_way,"project [w.eid, w.pid]",1523,1455,1.047
+q10_four_way,filter (w.hours > 30),1523,1455,1.047
+q10_four_way,rename w,6000,6000,1.0
+q10_four_way,seqscan Works,6000,6000,1.0
+q10_four_way,"project [p.pid, p.pname]",300,300,1.0
+q10_four_way,rename p,300,300,1.0
+q10_four_way,seqscan Proj,300,300,1.0
+q11_group_having,filter (n > 55),14,9,1.556
+q11_group_having,"group_by sort [Emp.did] [count(*) as n, avg(Emp.salary) as pay]",40,40,1.0
+q11_group_having,"project [Emp.salary, Emp.did]",2000,2000,1.0
+q11_group_having,seqscan Emp,2000,2000,1.0
+q12_group_key_filter,group_by sort [Emp.did] [count(*) as n],9,9,1.0
+q12_group_key_filter,project [Emp.did],423,423,1.0
+q12_group_key_filter,filter (Emp.did < 10),423,423,1.0
+q12_group_key_filter,seqscan Emp,2000,2000,1.0
+q13_distinct,distinct sort,80,20,4.0
+q13_distinct,"project [Emp.city, Emp.province]",2000,2000,1.0
+q13_distinct,seqscan Emp,2000,2000,1.0
+q14_order_limit,limit 10,10,10,1.0
+q14_order_limit,sort [Emp.salary desc],457,10,45.7
+q14_order_limit,"project [Emp.name, Emp.salary]",457,442,1.034
+q14_order_limit,filter (Emp.age < 30),457,442,1.034
+q14_order_limit,seqscan Emp,2000,2000,1.0
+q15_union_pushdown,rename u,416,416,1.0
+q15_union_pushdown,union_all,416,416,1.0
+q15_union_pushdown,filter (Emp.city = 'Ottawa'),407,407,1.0
+q15_union_pushdown,project [Emp.city],2000,2000,1.0
+q15_union_pushdown,seqscan Emp,2000,2000,1.0
+q15_union_pushdown,filter (Dept.city = 'Ottawa'),9,9,1.0
+q15_union_pushdown,project [Dept.city],40,40,1.0
+q15_union_pushdown,seqscan Dept,40,40,1.0
+q16_self_join,"project [a.dname, b.dname]",14,98,7.0
+q16_self_join,nested_loop_join (a.city = b.city and a.did < b.did),14,98,7.0
+q16_self_join,"project [b.did, b.dname, b.city]",40,40,1.0
+q16_self_join,rename b,40,40,1.0
+q16_self_join,seqscan Dept,40,40,1.0
+q16_self_join,"project [a.did, a.dname, a.city]",40,40,1.0
+q16_self_join,rename a,40,40,1.0
+q16_self_join,seqscan Dept,40,40,1.0
+q17_correlated_join,"project [e.name, e.note, w.hours]",289,1240,4.291
+q17_correlated_join,nested_loop_join (e.eid = w.eid),289,1240,4.291
+q17_correlated_join,"project [e.eid, e.name, e.note]",83,407,4.904
+q17_correlated_join,filter (e.city = 'Ottawa' and e.area = '201'),83,407,4.904
+q17_correlated_join,rename e,2000,2000,1.0
+q17_correlated_join,seqscan Emp,2000,2000,1.0
+q17_correlated_join,"project [w.eid, w.hours]",6000,12000,2.0
+q17_correlated_join,rename w,6000,12000,2.0
+q17_correlated_join,seqscan Works,6000,12000,2.0
+q18_correlated_count,group_by sort [] [count(*) as n],1,1,1.0
+q18_correlated_count,project [Emp.eid],174,407,2.339
+q18_correlated_count,filter (Emp.city = 'Ottawa' and Emp.province = 'ON'),174,407,2.339
+q18_correlated_count,seqscan Emp,2000,2000,1.0
+q19_join_group,group_by sort [d.dname] [count(*) as n],40,40,1.0
+q19_join_group,project [d.dname],297,271,1.096
+q19_join_group,nested_loop_join (e.did = d.did),297,271,1.096
+q19_join_group,"project [d.did, d.dname]",40,40,1.0
+q19_join_group,rename d,40,40,1.0
+q19_join_group,seqscan Dept,40,40,1.0
+q19_join_group,project [e.did],297,271,1.096
+q19_join_group,filter (e.salary > 100000),297,271,1.096
+q19_join_group,rename e,2000,2000,1.0
+q19_join_group,seqscan Emp,2000,2000,1.0
+q20_works_proj,"project [w.eid, p.pname]",29,24,1.208
+q20_works_proj,nested_loop_join (w.pid = p.pid),29,24,1.208
+q20_works_proj,"project [p.pid, p.pname]",9,9,1.0
+q20_works_proj,filter (p.did = 3),9,9,1.0
+q20_works_proj,rename p,300,300,1.0
+q20_works_proj,seqscan Proj,300,300,1.0
+q20_works_proj,"project [w.eid, w.pid]",954,954,1.0
+q20_works_proj,filter (w.role = 'lead'),954,954,1.0
+q20_works_proj,rename w,6000,6000,1.0
+q20_works_proj,seqscan Works,6000,6000,1.0

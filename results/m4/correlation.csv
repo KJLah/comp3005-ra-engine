@@ -1,0 +1,5 @@
+B,q17_est_rows,q17_actual_rows,q17_join,q17_est_cost,q17_io,city_only_est_rows,city_only_actual_rows,city_only_join,city_only_est_cost,city_only_io
+4,83,407,BNL,147,452,407,407,hash,183,271
+6,83,407,BNL,147,250,407,407,hash,183,211
+8,83,407,BNL,147,250,407,407,BNL,147,250
+32,83,407,BNL,147,149,407,407,BNL,147,149

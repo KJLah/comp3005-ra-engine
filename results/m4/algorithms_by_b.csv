@@ -1,0 +1,9 @@
+query,B=3,B=4,B=8,B=32
+q07_join_on,BNL,BNL,BNL,BNL
+q08_join_commas,BNL,BNL,BNL,BNL
+q09_three_way,hash+BNL,hash+BNL,BNL+BNL,BNL+BNL
+q10_four_way,BNL+SMJ+BNL,BNL+BNL+BNL,BNL+BNL+BNL,BNL+BNL+BNL
+q16_self_join,BNL,BNL,BNL,BNL
+q17_correlated_join,hash,BNL,BNL,BNL
+q19_join_group,BNL,BNL,BNL,BNL
+q20_works_proj,BNL,BNL,BNL,BNL
