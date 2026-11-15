@@ -292,3 +292,24 @@ cost is 154 and its measured I/O 160 (`exec trace`): the four scans read
 154 pages against 150 estimated (one directory page each), and the three
 joins wrote and read back 6 block pages against the 4 pages the model
 charges for reading the two intermediate outers.
+
+## References and connection to the design
+
+1. Selinger, P. G., et al. “Access Path Selection in a Relational Database
+   Management System.” Proceedings of ACM SIGMOD, 1979.
+
+   This source helped me validate cost-based join enumeration using
+   dynamic programming. My optimizer retains a cheapest candidate for
+   each relation subset and builds left-deep alternatives by adding one
+   relation at a time. This reduces the search space while excluding
+   potentially useful bushy plans.
+
+2. Leis, V., et al. “How Good Are Query Optimizers, Really?”
+   Proceedings of the VLDB Endowment, 2015.
+
+   This source helped me interpret cardinality-estimation errors as a
+   cause of poor plan choices. I therefore measured estimated against
+   actual rows and investigated correlated predicates. The correlation
+   experiment shows how the independence assumption underestimates an
+   input and can make a nested-loop plan appear cheaper than a better
+   alternative.
