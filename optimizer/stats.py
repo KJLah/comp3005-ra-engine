@@ -17,13 +17,13 @@ A column whose record would not fit in a page is split into several records
 with the same "col" and a "part" number; the histogram parts are joined in
 order when read back.
 
-ANALYZE reads the table once for n_tuples, n_pages (data pages only, so
-directory pages are not counted) and width. Each column's ndv, min, max and
-histogram come from sorting that column with the Module 2 external sort,
-run as an ordinary Module 2 plan (sort over project over seqscan), so a
-column that does not fit in memory is sorted in runs. Everything is exact:
-no sampling. ANALYZE replaces T.stats and the catalog statistics with
-values computed only from the data, so running it twice changes nothing.
+ANALYZE scans the original table once, counting live tuples and record
+bytes while copying live records to temporary storage. n_pages counts
+the original table's data pages, excluding directory pages. Each column
+is externally sorted from the temporary copy using Module 2, so large
+columns do not need to fit in memory. Temporary storage is removed on
+completion or failure. Statistics are exact, with no sampling, and
+running ANALYZE twice over unchanged data produces unchanged statistics.
 """
 from __future__ import annotations
 
