@@ -11,7 +11,6 @@ requires-python = ">=3.8"
 storage = "storage.cli:main"
 exec = "execution.cli:main"
 sql = "sql.cli:main"
-include = ["ra_engine*", "storage*", "execution*", "sql*"]
 
 [tool.setuptools.packages.find]
-include = ["ra_engine*", "storage*", "execution*"]
+include = ["ra_engine*", "storage*", "execution*", "sql*"]
