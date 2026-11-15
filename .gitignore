@@ -3,3 +3,5 @@ __pycache__/
 data/generated/
 .DS_Store
 *.egg-info/data/m4/
+*.egg-info/
+data/m4/
