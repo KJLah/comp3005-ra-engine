@@ -896,3 +896,50 @@ Verification:
   algorithm-selection and four-relation DP results.
 - After the histogram endpoint correction, q05's median and worst
   q-error are 1.06.
+
+
+## 2026-11-15: Integration, one program over four modules
+
+**Goal:** Section 6: a single program with a prompt that takes the SQL
+subset plus EXPLAIN, EXPLAIN ANALYZE, ANALYZE, SET frames and LOAD; a
+report of row count, page I/O, wall time and estimated against actual rows
+for an unseen workload; ARCHITECTURE.md.
+
+**Decisions:**
+- Wiring, not rewriting. The shell commands are recognised by their first
+  words in `shell/split.py` and never reach Module 3, so the Module 3
+  grammar and all four module tools are unchanged. Everything else goes
+  to Module 3 as it is.
+- A statement keeps its place in the script: the text before it, and a
+  prefix such as EXPLAIN, is replaced by spaces. Module 3 errors therefore
+  still give the line and column in the whole script.
+- Nothing is cached between statements, so a LOAD or ANALYZE is visible to
+  the next query. LOAD does not re-analyze; the shell says the statistics
+  are stale.
+- Page I/O in the report is Module 2's per-operator counters summed, so
+  any number can be traced to an operator with EXPLAIN ANALYZE.
+- Correctness before the demo: `pg_tools.py sqlite` runs the same queries
+  on SQLite (Python's standard library) over the rows read back from our
+  heap files. `pg_tools.py export` prepares the same check for PostgreSQL,
+  with VARCHAR columns `COLLATE "C"` because our string order is byte
+  order.
+- Integration assumptions I1 to I9 are listed in ARCHITECTURE.md
+  section 5.
+
+**Findings (rehearsal, B = 32, our data loaded from CSV through the shell):**
+- 25 queries (the 20 Module 4 queries and 5 more for INTERSECT, EXCEPT,
+  an aggregate in a derived table, a three-way join with SUM and MAX, and
+  SELECT *). All 25 answers equal SQLite's as bags, and the ordered ones
+  in the same order.
+- The largest root q-errors are q22 (EXCEPT, 7.3: the estimate is the left
+  input, 2000, for 275), q16 (the 0.1 default for a.did < b.did, 7.0), q17
+  (correlated city and area, 4.3) and q13 (DISTINCT over correlated
+  columns, 4.0). Each one is explained in REPORT_M4.md or ARCHITECTURE.md.
+- Wall time follows comparisons more than pages: q17 does 149 page I/Os in
+  610 ms (a nested loop join), q22 does 157 in 76 ms.
+
+**Verification:**
+- Full-suite command: `python3 -m unittest discover -s tests`
+- Result: 538 tests pass (26 new in `tests/test_integ_*.py`), Python 3.13.
+- `python3 run_workload.py --db data/finaldb --queries
+  queries/final/workload.sql --repeat 3` writes results/final.
