@@ -44,7 +44,7 @@ IDENT       = letter { letter | digit } ;           (* unless it is a KEYWORD *)
 KEYWORD     = "select" | "project" | "rename" | "distinct"
             | "union" | "intersect" | "minus" | "times" | "join"
             | "and" | "or" | "not" ;
-CMP_OP      = "=" | "!=" | "<" | "<=" | ">" | ">=" ;
+CMP_OP      = "=" | "!=" | "<>" | "<" | "<=" | ">" | ">=" ;   (* "<>" added in Module 3, same as "!=" *)
 punctuation = "[" | "]" | "(" | ")" | "," | "." | "{" ;
 (* whitespace, including newlines, separates tokens and is otherwise ignored *)
 
