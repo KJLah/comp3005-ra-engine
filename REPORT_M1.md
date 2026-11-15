@@ -137,3 +137,21 @@ read are still in the pool when the scan ends). The directory page is fetched
 once and stays pinned while its 500 data pages are read, so it is never
 re-read. Writes are 0 because a scan only reads. B = 2 is enough: the scan
 never has more than 2 pages pinned (one directory page and one data page).
+
+## References and connection to the design
+
+1. Ramakrishnan, R., and Gehrke, J. Database Management Systems.
+   Chapter 9.
+
+   This source helped me validate the separation between fixed-size pages,
+   variable-length records, and heap-file organization. My implementation
+   uses a slotted page so records can have different lengths while their
+   record identifiers continue to refer to page and slot numbers.
+
+2. Silberschatz, A., Korth, H. F., and Sudarshan, S. Database System
+   Concepts. Storage and buffer-management chapters.
+
+   This source helped me validate pinning, dirty-page handling, and
+   replacement-policy behavior. It also informed my interpretation of the
+   repeated-scan measurements: a scan larger than the pool can repeatedly
+   evict useful pages under both LRU and CLOCK.
