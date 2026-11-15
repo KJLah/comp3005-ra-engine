@@ -71,7 +71,7 @@ def cmd_export(a) -> None:
         schema.append(_ddl(info, collate=True))
         path = os.path.join("data", f"{info.name}.csv")
         with open(os.path.join(a.out, path), "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerows(rows)
+            csv.writer(f, quoting=csv.QUOTE_ALL).writerows(rows)
         load.append(f"\\copy {info.name.lower()} FROM '{path}' WITH (FORMAT csv)")
         load.append(f"ANALYZE {info.name.lower()};")
         print(f"exported {info.name}: {len(rows)} rows")
@@ -79,14 +79,22 @@ def cmd_export(a) -> None:
         f.write("\n".join(schema) + "\n")
     with open(os.path.join(a.out, "load.sql"), "w", encoding="utf-8") as f:
         f.write("\n".join(load) + "\n")
-    lines = ["#!/bin/sh", "# usage: cd pg && sh run.sh DBNAME   (after schema.sql and load.sql)",
-             'DB="${1:?give the PostgreSQL database name}"', "mkdir -p rows"]
+    lines = [
+        "#!/bin/sh",
+        "set -eu",
+        "# usage: cd pg && sh run.sh DBNAME",
+        'DB="${1:?give the PostgreSQL database name}"',
+        "mkdir -p rows",
+    ]
     if a.queries:
         os.makedirs(os.path.join(a.out, "queries"), exist_ok=True)
         for name, text in _queries(a.queries):
             with open(os.path.join(a.out, "queries", f"{name}.sql"), "w", encoding="utf-8") as f:
                 f.write(text.strip() + "\n")
-            lines.append(f'psql -X -q -d "$DB" --csv -f queries/{name}.sql -o rows/{name}.csv')
+            lines.append(
+                f'psql -X -q -v ON_ERROR_STOP=1 -d "$DB" '
+                f'--csv -f queries/{name}.sql -o rows/{name}.csv'
+            )
     with open(os.path.join(a.out, "run.sh"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     print(f"wrote {a.out}/schema.sql, load.sql and run.sh")

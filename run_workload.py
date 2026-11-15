@@ -35,7 +35,7 @@ from typing import List, Tuple
 from execution.schema import REAL
 from shell.cli import render
 from shell.session import DEFAULT_FRAMES, Session
-from shell.split import classify, split_statements
+from shell.split import classify, split_statements, words
 
 FIELDS = ["query", "rows", "page_reads", "page_writes", "page_io", "wall_ms",
           "compile_ms", "plan_ms", "exec_ms", "est_rows", "actual_rows", "q_error", "error"]
@@ -69,7 +69,12 @@ def _is_query(stmt: str) -> bool:
     cmd = classify(stmt)
     if cmd.kind != "sql":
         return False
-    head = stmt.lstrip().split(None, 1)[0].upper() if stmt.strip() else ""
+
+    tokens = words(stmt, limit=1)
+    if not tokens:
+        return False
+
+    head = tokens[0][0].upper()
     return head not in ("CREATE", "INSERT")
 
 
