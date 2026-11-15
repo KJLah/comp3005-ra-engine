@@ -1,0 +1,2 @@
+-- correlated predicates (area decides city) feeding a join: the 'where it breaks' query
+SELECT e.name, e.note, w.hours FROM Emp e JOIN Works w ON e.eid = w.eid WHERE e.city = 'Ottawa' AND e.area = '201';

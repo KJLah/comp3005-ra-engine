@@ -1,0 +1,2 @@
+-- four relations (the DP table printed in REPORT_M4.md)
+SELECT e.name, d.dname, p.pname FROM Emp e JOIN Works w ON e.eid = w.eid JOIN Proj p ON w.pid = p.pid JOIN Dept d ON e.did = d.did WHERE d.budget < 50000 AND w.hours > 30;
