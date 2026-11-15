@@ -53,6 +53,44 @@ capacity, replacement-policy hit rates, and scan cost.
 Scan counters currently measure table-page accesses only. Catalog
 accesses use a separate four-frame pool, as documented in DESIGN_M1.md.
 
+## Module 2: execution engine
+
+Module 2 runs physical query plans (JSON) as a tree of iterator operators on
+top of Module 1, inside a fixed budget of B buffer frames: sequential scan,
+filter, project, limit, external merge sort, distinct and group_by (sort and
+hash modes), block nested loop, sort-merge and grace hash joins, and union,
+union all, intersect and except. Every operator reports tuples out,
+comparisons, page reads and page writes.
+
+### Run a plan
+
+```bash
+python3 -m pip install -e .          # adds the `exec` command (or: python3 -m execution)
+exec run   --db DIR --plan plans/11_hash_join.json --frames 8 --json
+exec trace --db DIR --plan plans/11_hash_join.json --frames 4
+```
+
+`plans/` has one sample plan per operator. After every run the engine checks
+that no frame is still pinned and no temporary file remains.
+
+### Tests and measurements
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 measure_m2.py                # writes results/m2/; plots need matplotlib
+```
+
+The Module 2 tests are `tests/test_m2_*.py` (95 tests). The measurements cover
+operator cost against the formulas, sort passes, the join crossover points,
+skew and the memory budget.
+
+### Module 2 documentation
+
+- [DESIGN_M2.md](DESIGN_M2.md): iterator interface, memory budget, counters,
+  temporary files, and every operator's algorithm and decisions.
+- [REPORT_M2.md](REPORT_M2.md): all measurements, with explanations of the gaps
+  between formulas and measured numbers.
+
 ## Module 3: SQL front end
 
 Module 3 parses SQL, resolves names, checks types and aggregation rules, and
