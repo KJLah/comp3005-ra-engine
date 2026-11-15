@@ -1,4 +1,4 @@
-# Design log
+# Design Log
 
 One short entry per working session: what I was trying to do, what I tried,
 and what broke. At least three entries must describe a time AI assistance was
