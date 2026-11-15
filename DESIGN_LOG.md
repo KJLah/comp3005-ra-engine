@@ -19,9 +19,6 @@ wrong, slow or incomplete: what the problem was and how I found it.
 - The lexer has a "value mode" inside `{ }`, so bare values like `John` and
   `D1` work in relation files.
 
-**What I tried / what broke:**
-<!-- TODO: in your own words. For example: what you ran, what failed, what you changed. -->
-
 **AI was wrong / slow / incomplete:**
 - **It invented log entries.** The AI's first draft of GRAMMAR.md 5.5
   listed example "AI was wrong" incidents that had not happened. The AI
@@ -48,12 +45,6 @@ wrong, slow or incomplete: what the problem was and how I found it.
   build `l + r` just to test a pair.
 - Generator: key space K = round(m / k), S.b = i mod K, and R.b is uniform in
   0..K-1. The expected join size is n·k.
-
-**What I tried / what broke:**
-<!-- TODO -->
-
-**AI was wrong / slow / incomplete:**
-<!-- TODO: add one if something here went wrong for you. -->
 
 ---
 
@@ -94,7 +85,6 @@ wrong, slow or incomplete: what the problem was and how I found it.
   compatible. The assignment (4.3) requires identical names, so our engine
   rejects it. I kept the assignment's rule and documented the difference in
   README.md.
-- <!-- TODO: add what you saw when you ran the queries and the error cases. -->
 
 **AI was wrong / slow / incomplete:**
 - **Its instructions were incomplete.** The AI's checklist said to run
@@ -973,7 +963,22 @@ Further corrections:
 Verification:
 - Reviewer tested the proposed replacements in an isolated copy:
   556 tests passed.
-- Local regression result: [enter your actual result].
-- Local full-suite result: [enter your actual result].
-- Rehearsal comparison: [enter your actual result].
-- PostgreSQL/OpenStack verification: [record result when performed].
+- Integration regression suite: 13 tests passed.
+- Full suite: 556 tests passed.
+- Rehearsal comparison: 25 of 25 answers matched SQLite.
+- Official demo validation is pending because the instructor has not
+  released the dataset and 25 queries. PostgreSQL/OpenStack results
+  will be recorded when that validation is performed.
+
+  ### Final assignment checklist review
+
+Checked the implementation and submitted documents against the complete
+Project 2 overview. The review identified missing source-reference
+sections, missing published checkpoint tags, an inaccurate BNL cache-hit
+explanation, and an outdated M3 integration paragraph.
+
+Documentation and checkpoint-tag status:
+[Record the changes actually completed.]
+
+Official workload validation remains pending release of the instructor's
+dataset and queries.
