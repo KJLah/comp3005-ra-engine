@@ -182,6 +182,7 @@ One line each, as the instructor asked.
 - I7. Answers are compared as bags. The compare tool also says whether the order is the same, which only matters for ORDER BY without ties: tied rows may come out in any order in both systems.
 - I8. Identifiers are case sensitive in our SQL (Module 3) and folded to lower case by PostgreSQL. `pg_tools` writes lower-case table names, so unquoted names work in both.
 - I9. There are no NULLs (Module 1 has no NULL). A demo file with empty fields fails to load for an INT column and loads as an empty string for a VARCHAR column.
+- I10. The demo dataset and 25 queries were not published, so we used our own: gen_final.py (4 tables, 8,340 rows) and queries/final/workload.sql (25 queries). Their report is results/final/summary.md, and all 25 answers match SQLite over the same rows.
 
 ## 6. What I would do differently
 
