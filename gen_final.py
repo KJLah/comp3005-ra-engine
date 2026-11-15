@@ -3,12 +3,11 @@
 
     python3 gen_final.py [--out data/final] [--scale 1]
 
-The demo dataset is published 72 hours before the demo, so this writes our
-Module 4 data (gen_m4.py, same seed) as one CSV file per table, each with a
-header line, the way a published dataset most likely arrives. The shell
-then builds the database from scratch with queries/final/setup.sql
-(CREATE TABLE, LOAD ... HEADER, ANALYZE), and run_workload.py runs the 25
-queries of queries/final/workload.sql.
+The instructor approved using our own dataset and queries. This script
+writes our Module 4 data (gen_m4.py, same seed) as CSV files with headers.
+The shell builds the database using queries/final/setup.sql
+(CREATE TABLE, LOAD ... HEADER, ANALYZE), and run_workload.py executes
+the 25 queries in queries/final/workload.sql.
 """
 from __future__ import annotations
 
