@@ -82,6 +82,13 @@ class PlanRun:
             t["page_writes"] += op.c.page_writes
         return t
 
+    def operators(self) -> List[Dict[str, object]]:
+        """Per-operator counters, root first, for --json."""
+        return [{"op": op.label(), "depth": d, "tuples_out": op.c.tuples_out,
+                 "comparisons": op.c.comparisons, "page_reads": op.c.page_reads,
+                 "page_writes": op.c.page_writes} for d, op in self.root.walk()]
+
+
     def trace_lines(self) -> List[str]:
         nodes = [(depth, op) for depth, op in self.root.walk()]
         width = max(len("  " * d + op.label()) for d, op in nodes) + 2
@@ -105,7 +112,8 @@ def run(args, out: TextIO) -> None:
                       + "[" + ",".join(json_value(v, t) for v, t in zip(r, types)) + "]")
             first = False
         out.write(("\n " if not first else "") + '],\n "totals": '
-                  + json.dumps(pr.totals()) + "}\n")
+                  + json.dumps(pr.totals()) + ',\n "operators": '
+                  + json.dumps(pr.operators()) + "}\n")
     else:
         out.write(" | ".join(pr.schema.names()) + "\n")
         for r in pr.rows():
@@ -119,6 +127,11 @@ def trace(args, out: TextIO) -> None:
     pr = PlanRun(args.db, _read(args.plan), args.frames, args.policy)
     for _ in pr.rows():
         pass
+    if args.json:
+        out.write(json.dumps({"operators": pr.operators(), "totals": pr.totals(),
+                              "peak_pinned": pr.ctx.pool.peak_pinned,
+                              "frames": args.frames}) + "\n")
+        return
     for line in pr.trace_lines():
         out.write(line + "\n")
     out.write(f"peak pinned frames={pr.ctx.pool.peak_pinned} of B={args.frames}\n")
@@ -138,12 +151,11 @@ def build_parser() -> argparse.ArgumentParser:
     for name, helptext in (("run", "run a plan and print its rows"),
                            ("trace", "run a plan and print per-operator counters")):
         s = sub.add_parser(name, help=helptext)
-        s.add_argument("--db", required=True, help="database directory")
+        s.add_argument("--db", "--catalog", dest="db", default=".", help="database directory")
         s.add_argument("--plan", required=True, help="plan JSON file")
         s.add_argument("--frames", type=int, required=True, help="B, the frame budget")
         s.add_argument("--policy", default="lru", choices=("lru", "clock"))
-        if name == "run":
-            s.add_argument("--json", action="store_true")
+        s.add_argument("--json", action="store_true")
     return p
 
 

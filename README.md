@@ -1,7 +1,7 @@
 # Relational Algebra Query Processor
 
 COMP 3005 (Fall 2026). Originally developed for Bonus Project 1, this
-relational algebra engine is now being prepared as a reusable library
+relational algebra engine is now the reusable library layer
 for Project 2. It includes a hand-written tokenizer, recursive-descent
 parser, AST, condition compiler, operator execution, JSON tree
 serialization, command-line interface, and performance study.
@@ -38,7 +38,7 @@ python3 -m unittest discover -s tests -v
 python3 measure_m1.py
 ```
 
-The verified suite contains 197 tests. The measurements cover record
+The full suite contains 560 tests. The measurements cover record
 capacity, replacement-policy hit rates, and scan cost.
 
 ### Module 1 documentation
@@ -125,7 +125,7 @@ programming over left-deep join orders.
 
 ```bash
 python3 -m pip install -e .                     # adds the `opt` command (or: python3 -m optimizer)
-python3 gen_m4.py --db data/m4                  # our dataset, already ANALYZEd
+python3 gen_m4.py --db data/m4                  # my dataset, already ANALYZEd
 opt analyze  --db data/m4 --table Emp           # (re)compute statistics
 opt explain  --db data/m4 --logical queries/m4/q09_three_way.json --frames 8 --rewrites
 opt dp-table --db data/m4 --logical queries/m4/q10_four_way.json --frames 8
@@ -168,7 +168,7 @@ and queries for PostgreSQL. The integration tests are
 `tests/test_integ_*.py`.
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): the whole system, the interface
-  between each pair of modules, the demo steps, and what we would do
+  between each pair of modules, the demo steps, and what I would do
   differently.
 
 ## How to run
@@ -186,7 +186,7 @@ python3 ra.py -d data/employees.ra --stats "Emp join[Emp.DID=Dept.DID] Dept"
 # interactive shell (type .tree <query> for a tree, .quit to leave)
 python3 ra.py -d data/employees.ra
 
-# tests: all 25 required cases, the Lecture 02 examples, and our own
+# tests: all 25 required cases, the Lecture 02 examples, and my own
 python3 -m unittest discover -s tests -v
 
 # performance study
@@ -406,7 +406,7 @@ examples that require a set-valued projection need explicit `distinct`.
   titles and marks (a two-join query), and students who take no courses. The
   course-name projection produces `{Alex, Alex, Alex, John}` as a bag.
   Wrapping that projection in `distinct(...)` produces `{Alex, John}`.
-* **Division** is not one of our operators, but the "students who studied
+* **Division** is not one of my operators, but the "students who studied
   ALL courses" slide can be written with the core ones:
   `π_sid(R) − π_sid((π_sid(R) × π_cname(Course)) − R)`.
 

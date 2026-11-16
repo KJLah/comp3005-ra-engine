@@ -147,19 +147,19 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--explain", action="store_true", help="print the indented parse tree")
 
     s = sub.add_parser("compile", help="print the logical plan of each query")
-    s.add_argument("--db", required=True, help="database directory (Module 1 catalog)")
+    s.add_argument("--db", "--catalog", dest="db", default=".", help="database directory (Module 1 catalog)")
     s.add_argument("--file")
     s.add_argument("--query")
     s.add_argument("--json", action="store_true", help="logical plan JSON")
     s.add_argument("--explain", action="store_true", help="indented tree (the default)")
 
     s = sub.add_parser("check", help="report the first error; exit 0 or 1")
-    s.add_argument("--db", required=True)
+    s.add_argument("--db", "--catalog", dest="db", default=".")
     s.add_argument("--file")
     s.add_argument("--query")
 
     s = sub.add_parser("exec", help="apply CREATE TABLE and INSERT to the database")
-    s.add_argument("--db", required=True)
+    s.add_argument("--db", "--catalog", dest="db", default=".")
     s.add_argument("--file")
     s.add_argument("--query")
     return p

@@ -213,19 +213,19 @@ def build_parser() -> argparse.ArgumentParser:
     sub = ap.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("create-table")
-    p.add_argument("--db", required=True)
+    p.add_argument("--db", "--catalog", dest="db", default=".")
     p.add_argument("--name", required=True)
     p.add_argument("--schema", required=True)
     p.set_defaults(func=cmd_create_table)
 
     p = sub.add_parser("load")
-    p.add_argument("--db", required=True)
+    p.add_argument("--db", "--catalog", dest="db", default=".")
     p.add_argument("--table", required=True)
     p.add_argument("--file", required=True)
     p.set_defaults(func=cmd_load)
 
     p = sub.add_parser("scan")
-    p.add_argument("--db", required=True)
+    p.add_argument("--db", "--catalog", dest="db", default=".")
     p.add_argument("--table", required=True)
     p.add_argument("--frames", type=int, default=8)
     p.add_argument("--policy", choices=["lru", "clock"], default="lru")
@@ -234,7 +234,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_scan)
 
     p = sub.add_parser("layout")
-    p.add_argument("--db", required=True)
+    p.add_argument("--db", "--catalog", dest="db", default=".")
     p.add_argument("--table", required=True)
     p.add_argument("--page", type=int, required=True)
     p.add_argument("--hex", action="store_true")

@@ -7,12 +7,12 @@ from typing import Iterator, List, Optional
 from storage.errors import CatalogError
 from storage.heap import NO_PAGE, DirectoryPage
 from storage.page import SlottedPage
-from storage.record import VARCHAR, decode as decode_record
+from storage.record import INT, VARCHAR, decode as decode_record
 
 from .base import Operator, register
 from .conditions import row_predicate
 from .errors import BindError
-from .schema import Col, Row, Schema
+from .schema import BIGINT, Col, Row, Schema
 
 
 @register("seqscan")
@@ -174,22 +174,42 @@ class Limit(Operator):
 
 
 def setop_schema(op: Operator) -> Schema:
-    """§2.10: same number of columns with the same types, position by
-    position. Names may differ; the output takes the left input's names.
-    VARCHAR lengths may differ; the output takes the larger, so a right
-    tuple always fits the output schema."""
+    """Require compatible types by position and keep the left names.
+
+    INT and the internal BIGINT used for SUM are one integer family.
+    Preserve BIGINT if either input needs it. VARCHAR output uses the
+    larger declared length. INT and REAL remain distinct here.
+    """
     left, right = op.children[0].schema, op.children[1].schema
     where = f"{op.path} ({op.op})"
+
     if len(left) != len(right):
-        raise BindError(f"{where}: left has {len(left)} columns, right has "
-                        f"{len(right)}")
+        raise BindError(
+            f"{where}: left has {len(left)} columns, "
+            f"right has {len(right)}"
+        )
+
     cols: List[Col] = []
     for i, (a, b) in enumerate(zip(left.cols, right.cols)):
-        if a.type != b.type:
-            raise BindError(f"{where}: column {i + 1} is {a.type} ({a.name}) on the "
-                            f"left but {b.type} ({b.name}) on the right")
-        length = max(a.length, b.length) if a.type == VARCHAR else None
-        cols.append(Col(a.name, a.type, length))
+        integer_pair = (
+            a.type in (INT, BIGINT)
+            and b.type in (INT, BIGINT)
+        )
+
+        if a.type != b.type and not integer_pair:
+            raise BindError(
+                f"{where}: column {i + 1} is {a.type} ({a.name}) "
+                f"on the left but {b.type} ({b.name}) on the right"
+            )
+
+        typ = (
+            BIGINT
+            if integer_pair and BIGINT in (a.type, b.type)
+            else a.type
+        )
+        length = max(a.length, b.length) if typ == VARCHAR else None
+        cols.append(Col(a.name, typ, length))
+
     return Schema(cols, where)
 
 
