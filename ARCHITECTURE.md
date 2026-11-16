@@ -145,7 +145,7 @@ a pipeline).
 ## 4. The demo
 
 The instructor confirmed that no dataset or queries will be provided.
-This submission uses our own dataset and 25-query workload.
+This submission uses my own dataset and 25-query workload.
 
 ```
 radb --db data/demo --file demo_setup.sql            CREATE TABLE ..., LOAD ..., ANALYZE
@@ -164,7 +164,7 @@ I/O (reads + writes), the wall time (median of the runs) and the estimated
 rows at the root against the actual rows, with the q-error. `EXPLAIN
 ANALYZE` on any query explains its numbers node by node.
 
-`pg_tools.py export` writes the rows held by our heap files, quoting every
+`pg_tools.py export` writes the rows held by my heap files, quoting every
 CSV field so empty strings remain empty strings in PostgreSQL. VARCHAR
 columns use COLLATE "C".
 
@@ -173,7 +173,7 @@ integer values compare exactly; only REAL output uses four-decimal display
 rounding. It requires a nonempty, successful workload in summary.csv and
 the complete expected query-file set in both result directories.
 
-The rehearsal (`gen_final.py`, `queries/final/`) runs the same steps on our
+The rehearsal (`gen_final.py`, `queries/final/`) runs the same steps on my
 own data: 25 queries, all 25 answers equal to SQLite's over the same rows
 (`pg_tools.py sqlite`). Its report is `results/final/summary.md`.
 
@@ -188,9 +188,9 @@ One line each, as the instructor asked.
 - I5. Wall time is compile + plan + execute, measured with `time.perf_counter`, the median of `--repeat` runs. Printing rows is not timed.
 - I6. The integrated shell supports B >= 4, with default B = 32. SET frames and --frames change the budget, and each query's report records the B actually used. Standalone module tools retain their existing supported budgets.
 - I7. Results are compared as bags by default. Use compare --ordered q01,q02 for queries whose ORDER BY requires an exact sequence. Do not require exact sequence equality when ties permit different valid orders.
-- I8. Identifiers are case sensitive in our SQL (Module 3) and folded to lower case by PostgreSQL. `pg_tools` writes lower-case table names, so unquoted names work in both.
+- I8. Identifiers are case sensitive in my SQL (Module 3) and folded to lower case by PostgreSQL. `pg_tools` writes lower-case table names, so unquoted names work in both.
 - I9. There are no NULLs (Module 1 has no NULL). A demo file with empty fields fails to load for an INT column and loads as an empty string for a VARCHAR column.
-- I10. The instructor confirmed that no dataset or queries will be supplied, so this submission uses our own four-table dataset and 25-query rehearsal workload.
+- I10. The instructor confirmed that no dataset or queries will be supplied, so this submission uses my own four-table dataset and 25-query rehearsal workload.
 
 ## 6. What I would do differently
 
@@ -224,12 +224,12 @@ LOAD or INSERT after ANALYZE leaves them stale, and the shell can only
 warn. I would keep a modification counter in each catalog entry and
 re-analyze, or at least scale n_tuples, when it passes a threshold. I
 would also store a few column-group ndvs, since correlated columns (q17,
-the "where it breaks" study) are the largest estimation error we have.
+the "where it breaks" study) are the largest estimation error I have.
 
 **Check answers against a reference engine from the first module.** The
 end-to-end check against SQLite only came with the integration. It would
 have caught earlier the Module 4 bug where q17 lost its WHERE clause with
-rule 2 off, which we only found while checking the report numbers. I would build the reference check
+rule 2 off, which which I only found while checking the report numbers. I would build the reference check
 alongside Module 1's loader and run it on every query in the tests.
 
 **Support NULL from the start.** Real datasets have missing values, and
@@ -241,3 +241,26 @@ careful `error: <category>: <message> at line L, column C`. The other
 modules print `error: <message>`. The shell has to keep both formats. One
 error class with an optional position, shared by all modules, would have
 given the user one format.
+
+## References and connection to the design
+
+1. Hellerstein, J. M., Stonebraker, M., and Hamilton, J. "Architecture of
+   a Database System." Foundations and Trends in Databases, 2007.
+
+   This source shaped how the modules are wired. It describes a query
+   passing through a parser, an optimizer, an executor and a storage
+   layer, with a catalog that every layer reads. I kept that order in the
+   shell (Module 3 compiles, Module 4 plans, Module 2 runs, Module 1
+   serves pages) and kept the catalog and the statistics in Module 1's
+   pages, so Modules 3 and 4 read them through the same storage code
+   instead of keeping their own copies.
+
+2. Pavlo, A. CMU 15-445/645 Database Systems lectures, on query execution
+   and query planning.
+
+   These lectures changed how the shell reports a query. They present the
+   plan as the object each stage hands to the next, so the shell passes
+   plan JSON between the modules unchanged, and EXPLAIN ANALYZE prints the
+   estimated rows beside the actual rows at every node. That made the
+   workload report's q-error column come from the same numbers the
+   optimizer used.
