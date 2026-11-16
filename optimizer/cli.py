@@ -104,15 +104,15 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="opt", description="Module 4 query optimizer")
     sub = ap.add_subparsers(dest="command", required=True)
     s = sub.add_parser("analyze", help="compute statistics for a table")
-    s.add_argument("--db", required=True)
+    s.add_argument("--db", "--catalog", dest="db", default=".")
     s.add_argument("--table")
     s.add_argument("--buckets", type=int, default=DEFAULT_BUCKETS)
     for name, extra in (("plan", True), ("explain", False), ("dp-table", False)):
         s = sub.add_parser(name)
-        s.add_argument("--db", required=True)
+        s.add_argument("--db", "--catalog", dest="db", default=".")
         s.add_argument("--logical")
         s.add_argument("--sql")
-        s.add_argument("--frames", type=int, required=True)
+        s.add_argument("--frames", type=int, default=32)
         s.add_argument("--off", help="rewrite rules to switch off, e.g. 2,6")
         if name == "plan":
             s.add_argument("--json", action="store_true", help="(the default output)")
