@@ -1008,3 +1008,20 @@ wall time, and estimated against actual rows at the root.
 
 All 25 answers matched SQLite, and the full suite passed 556 tests.
 There is no instructor-provided workload to wait for.
+
+### Integer set-operation integration correction
+
+Additional review found a type mismatch between modules: SQL treats SUM
+as an integer result, while execution stores it internally as BIGINT.
+Set operations rejected combinations of SUM results and ordinary INT
+columns.
+
+The executor now accepts INT/BIGINT pairs and preserves BIGINT when
+either side requires it. INT/REAL mismatches remain rejected.
+
+Added four regression tests covering all four set operators in both
+input orders, SUM with COUNT, wide sums followed by sorting, and
+continued rejection of incompatible types.
+
+Verification: all 560 tests passed, including the four new integer
+set-operation regression tests.
